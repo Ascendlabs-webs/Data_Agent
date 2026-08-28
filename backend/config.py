@@ -19,7 +19,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv(
     "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
 )
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning")
 
 # Comma-separated fallback models tried when the primary model is
 # unavailable (429 rate limit / 503 high demand on the provider side).

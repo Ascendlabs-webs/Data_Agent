@@ -276,7 +276,7 @@ Open **http://localhost:8000** and try:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | ✅ Yes | — | Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `OPENROUTER_MODEL` | No | `openai/gpt-4o-mini` | Primary model id used via OpenRouter |
+| `OPENROUTER_MODEL` | No | `nvidia/nemotron-3.5-lightning` | Primary model id used via OpenRouter |
 | `OPENROUTER_FALLBACK_MODELS` | No | `anthropic/claude-3.5-haiku,google/gemini-2.0-flash-001` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
@@ -360,7 +360,7 @@ The database selector in the UI updates automatically. The agent discovers the s
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | OpenRouter (default `openai/gpt-4o-mini`) via `openai` SDK |
+| LLM | OpenRouter (default `nvidia/nemotron-3.5-lightning`) via `openai` SDK |
 | Backend | Python 3.10+, FastAPI, Uvicorn |
 | Data | SQLite, Pandas, NumPy |
 | Charts | Plotly Express (server) + Plotly.js (client) |

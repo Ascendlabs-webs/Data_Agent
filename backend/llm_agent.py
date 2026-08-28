@@ -132,7 +132,7 @@ def explanation_tool(data_json: str):
 def ask_agent(user_message):
 
     response = client.chat.completions.create(
-        model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+        model=os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning"),
         messages=[
             {"role": "user", "content": user_message}
         ],
