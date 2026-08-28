@@ -101,7 +101,6 @@ def build_config(database):
                 function_declarations=build_tool_declarations()
             )
         ],
-        temperature=0.2,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(
             disable=True
         ),
@@ -202,8 +201,8 @@ def _retry_delay(error_message):
 
 
 def _stream_generate(contents, config):
-    """Generate content, automatically waiting out free-tier 429 limits."""
-    for attempt in range(3):
+    """Generate content, automatically waiting out free-tier 429/503 limits."""
+    for attempt in range(5):
         try:
             client = get_client()
             for chunk in client.models.generate_content_stream(
@@ -214,13 +213,17 @@ def _stream_generate(contents, config):
                 yield chunk
             return
         except errors.ClientError as error:
-            if getattr(error, "code", None) != 429 or attempt == 2:
+            code = getattr(error, "code", None)
+            if code not in (429, 503) or attempt == 4:
                 raise
-            delay = _retry_delay(str(error))
+            delay = _retry_delay(str(error)) if code == 429 else (10 + attempt * 10)
             yield event("tool_result", {
                 "name": "rate_limit",
                 "status": "waiting",
-                "summary": f"Rate limit hit — retrying in {int(delay)}s",
+                "summary": (
+                    f"Model busy (HTTP {code}) — retrying in {int(delay)}s "
+                    f"(attempt {attempt + 1}/5)"
+                ),
             })
             time.sleep(delay)
 
