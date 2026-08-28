@@ -18,6 +18,27 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
 
+# Comma-separated fallback models tried when the primary model is
+# unavailable (429 rate limit / 503 high demand on Google's side).
+GEMINI_FALLBACK_MODELS = [
+    m.strip()
+    for m in os.getenv(
+        "GEMINI_FALLBACK_MODELS", "gemini-3.6-flash,gemini-2.5-flash"
+    ).split(",")
+    if m.strip()
+]
+
+def available_models():
+    """Primary model followed by fallbacks, de-duplicated."""
+    models = [GEMINI_MODEL] + GEMINI_FALLBACK_MODELS
+    seen = set()
+    result = []
+    for model in models:
+        if model not in seen:
+            seen.add(model)
+            result.append(model)
+    return result
+
 # Maximum number of tool-calling turns before the agent stops
 MAX_TOOL_TURNS = 8
 

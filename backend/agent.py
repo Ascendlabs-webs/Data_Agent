@@ -23,7 +23,12 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 
-from backend.config import DATABASES, GEMINI_API_KEY, GEMINI_MODEL, MAX_TOOL_TURNS
+from backend.config import (
+    DATABASES,
+    GEMINI_API_KEY,
+    MAX_TOOL_TURNS,
+    available_models,
+)
 from backend.tool_registry import build_tool_declarations, run_tool
 
 load_dotenv()
@@ -201,31 +206,46 @@ def _retry_delay(error_message):
 
 
 def _stream_generate(contents, config):
-    """Generate content, automatically waiting out free-tier 429/503 limits."""
-    for attempt in range(5):
-        try:
-            client = get_client()
-            for chunk in client.models.generate_content_stream(
-                model=GEMINI_MODEL,
-                contents=contents,
-                config=config,
-            ):
-                yield chunk
-            return
-        except errors.ClientError as error:
-            code = getattr(error, "code", None)
-            if code not in (429, 503) or attempt == 4:
-                raise
-            delay = _retry_delay(str(error)) if code == 429 else (10 + attempt * 10)
-            yield event("tool_result", {
-                "name": "rate_limit",
-                "status": "waiting",
-                "summary": (
-                    f"Model busy (HTTP {code}) — retrying in {int(delay)}s "
-                    f"(attempt {attempt + 1}/5)"
-                ),
-            })
-            time.sleep(delay)
+    """Generate content, retrying through a chain of models on 429/503."""
+    models = available_models()
+    for model_index, model in enumerate(models):
+        for attempt in range(4):
+            try:
+                client = get_client()
+                for chunk in client.models.generate_content_stream(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                ):
+                    yield chunk
+                return
+            except errors.ClientError as error:
+                code = getattr(error, "code", None)
+                if code not in (429, 503):
+                    raise
+                is_last_model = model_index == len(models) - 1
+                if attempt == 3:
+                    if is_last_model:
+                        raise
+                    yield event("tool_result", {
+                        "name": "rate_limit",
+                        "status": "fallback",
+                        "summary": (
+                            f"Model '{model}' unavailable (HTTP {code}) — "
+                            f"switching to fallback model."
+                        ),
+                    })
+                    break
+                delay = _retry_delay(str(error)) if code == 429 else (5 + attempt * 8)
+                yield event("tool_result", {
+                    "name": "rate_limit",
+                    "status": "waiting",
+                    "summary": (
+                        f"Model busy (HTTP {code}) — retrying in {int(delay)}s "
+                        f"(attempt {attempt + 1}/4)"
+                    ),
+                })
+                time.sleep(delay)
 
 
 def stream_chat(messages, database="grocery"):

@@ -276,7 +276,8 @@ Open **http://localhost:8000** and try:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `GEMINI_API_KEY` | ✅ Yes | — | Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | No | `gemini-3.7-flash` | Gemini model name |
+| `GEMINI_MODEL` | No | `gemini-3.7-flash` | Primary Gemini model name |
+| `GEMINI_FALLBACK_MODELS` | No | `gemini-3.6-flash,gemini-2.5-flash` | Comma-separated fallback models tried when the primary is busy (429/503) |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
 
