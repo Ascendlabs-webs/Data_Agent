@@ -276,7 +276,7 @@ Open **http://localhost:8000** and try:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `GEMINI_API_KEY` | ✅ Yes | — | Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | No | `gemini-3.6-flash` | Gemini model name |
+| `GEMINI_MODEL` | No | `gemini-3.7-flash` | Gemini model name |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
 
@@ -359,7 +359,7 @@ The database selector in the UI updates automatically. The agent discovers the s
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | Google Gemini (`gemini-3.6-flash`) via `google-genai` SDK |
+| LLM | Google Gemini (`gemini-3.7-flash`) via `google-genai` SDK |
 | Backend | Python 3.10+, FastAPI, Uvicorn |
 | Data | SQLite, Pandas, NumPy |
 | Charts | Plotly Express (server) + Plotly.js (client) |

@@ -131,7 +131,7 @@ def explanation_tool(data_json: str):
 def ask_agent(user_message):
 
     response = client.models.generate_content(
-        model="gemini-3.6-flash",
+        model="gemini-3.7-flash",
         contents=user_message,
         config={
             "tools": [
