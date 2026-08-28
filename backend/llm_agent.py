@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from google import genai
+from openai import OpenAI
 
 from backend.database_tools import (
     get_schema,
@@ -18,9 +18,10 @@ from backend.explanation_tools import explain_data
 load_dotenv()
 
 
-# Create Gemini client
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
+# Create OpenRouter client (OpenAI-compatible)
+client = OpenAI(
+    base_url=os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"),
+    api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
 
@@ -125,26 +126,63 @@ def explanation_tool(data_json: str):
 
 
 # ==========================================
-# GEMINI AGENT
+# OPENROUTER AGENT
 # ==========================================
 
 def ask_agent(user_message):
 
-    response = client.models.generate_content(
-        model="gemini-3.7-flash",
-        contents=user_message,
-        config={
-            "tools": [
-                schema_tool,
-                query_tool,
-                chart_tool,
-                diagram_tool,
-                explanation_tool
-            ]
-        }
+    response = client.chat.completions.create(
+        model=os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+        messages=[
+            {"role": "user", "content": user_message}
+        ],
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_schema",
+                    "description": "Get database schema",
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "execute_query",
+                    "description": "Execute a SQL SELECT query",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "sql": {"type": "string"}
+                        },
+                        "required": ["sql"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_chart",
+                    "description": "Generate a chart",
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "generate_flowchart",
+                    "description": "Generate a flowchart",
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "explain_data",
+                    "description": "Explain query results",
+                },
+            },
+        ],
     )
 
-    return response.text
+    return response.choices[0].message.content
 
 
 # ==========================================
@@ -163,5 +201,5 @@ if __name__ == "__main__":
 
     answer = ask_agent(question)
 
-    print("\nGemini:")
+    print("\nAgent:")
     print(answer)

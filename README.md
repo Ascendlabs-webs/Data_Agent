@@ -1,6 +1,6 @@
 # 🛒 Data AI Agent — Conversational Database Analyst
 
-> **Hackathon Submission** · Built with FastAPI + Google Gemini + Vanilla JS
+> **Hackathon Submission** · Built with FastAPI + OpenRouter + Vanilla JS
 
 An LLM-powered agent that lets non-technical users ask questions in plain English, query a SQLite database, and see the answers with interactive charts, diagrams and tables — all inside a ChatGPT-style chat interface. No SQL knowledge required.
 
@@ -10,7 +10,7 @@ An LLM-powered agent that lets non-technical users ask questions in plain Englis
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=flat-square&logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat-square&logo=fastapi&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google%20Gemini-AI-7c6cf0?style=flat-square&logo=google&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-LLM-orange?style=flat-square&logo=openai&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=flat-square&logo=vercel&logoColor=white)
 
 ---
@@ -255,7 +255,7 @@ pip install -r requirements.txt
 # Configure environment
 copy .env.example .env         # Windows
 cp .env.example .env           # macOS/Linux
-# Edit .env: set GEMINI_API_KEY=your_key_here
+# Edit .env: set OPENROUTER_API_KEY=your_key_here
 
 # Start server (from project root)
 python -m uvicorn backend.app:app --reload --port 8000
@@ -275,9 +275,9 @@ Open **http://localhost:8000** and try:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GEMINI_API_KEY` | ✅ Yes | — | Get a free key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
-| `GEMINI_MODEL` | No | `gemini-3.7-flash` | Primary Gemini model name |
-| `GEMINI_FALLBACK_MODELS` | No | `gemini-3.6-flash,gemini-2.5-flash` | Comma-separated fallback models tried when the primary is busy (429/503) |
+| `OPENROUTER_API_KEY` | ✅ Yes | — | Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `OPENROUTER_MODEL` | No | `openai/gpt-4o-mini` | Primary model id used via OpenRouter |
+| `OPENROUTER_FALLBACK_MODELS` | No | `anthropic/claude-3.5-haiku,google/gemini-2.0-flash-001` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
 
@@ -318,7 +318,7 @@ The test suite covers schema discovery, SQL execution safety (non-SELECT rejecti
 
 1. **Fork / push** this repo to GitHub
 2. Import the repo in [vercel.com/new](https://vercel.com/new)
-3. Set the environment variable `GEMINI_API_KEY` in **Project Settings → Environment Variables**
+3. Set the environment variable `OPENROUTER_API_KEY` in **Project Settings → Environment Variables**
 4. Deploy — Vercel automatically detects `vercel.json` and builds from `api/index.py`
 
 The `vercel.json` includes `includeFiles` directives that bundle `frontend/`, `database/` and `backend/` into the serverless function.
@@ -360,7 +360,7 @@ The database selector in the UI updates automatically. The agent discovers the s
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | Google Gemini (`gemini-3.7-flash`) via `google-genai` SDK |
+| LLM | OpenRouter (default `openai/gpt-4o-mini`) via `openai` SDK |
 | Backend | Python 3.10+, FastAPI, Uvicorn |
 | Data | SQLite, Pandas, NumPy |
 | Charts | Plotly Express (server) + Plotly.js (client) |

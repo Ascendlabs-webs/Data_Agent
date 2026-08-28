@@ -133,12 +133,13 @@ def explain_data(data_json: str):
 
 def build_tool_declarations():
     """
-    Return the JSON function-declaration schemas sent to the model.
+    Return the OpenAI-format 'tools' schemas sent to the model
+    via OpenRouter's OpenAI-compatible chat completions API.
 
     Using explicit schemas (instead of callable introspection) makes
-    tool definitions deterministic across SDK versions.
+    tool definitions deterministic and provider-independent.
     """
-    return [
+    schemas = [
         {
             "name": "get_schema",
             "description": (
@@ -148,10 +149,10 @@ def build_tool_declarations():
                 "unknown, or for structure questions (ER diagrams)."
             ),
             "parameters": {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "database": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Database name (default 'grocery').",
                     }
                 },
@@ -165,14 +166,14 @@ def build_tool_declarations():
                 "with single quotes. Use LIMIT when appropriate."
             ),
             "parameters": {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "sql": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "The complete SQL SELECT statement.",
                     },
                     "database": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Database name (default 'grocery').",
                     },
                 },
@@ -188,17 +189,17 @@ def build_tool_declarations():
                 "chart."
             ),
             "parameters": {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "data_json": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": (
                             "Query results as a JSON array of objects "
                             "(the 'data' array from execute_query)."
                         ),
                     },
                     "chart_type": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": (
                             "bar (categorical comparisons), line (trends "
                             "over time), pie (proportional distribution), "
@@ -206,15 +207,15 @@ def build_tool_declarations():
                         ),
                     },
                     "x_column": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Column for X axis / categories.",
                     },
                     "y_column": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Numeric column for Y axis.",
                     },
                     "title": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Chart title.",
                     },
                 },
@@ -230,18 +231,18 @@ def build_tool_declarations():
                 "generic directed graphs, 'mindmap' for hierarchies."
             ),
             "parameters": {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "diagram_type": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "er, flowchart, graph or mindmap.",
                     },
                     "title": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": "Short title shown above the diagram.",
                     },
                     "content": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": (
                             "Mermaid source. Must start with the matching "
                             "keyword: erDiagram, flowchart TD, graph LR "
@@ -260,10 +261,10 @@ def build_tool_declarations():
                 "your insights with numbers."
             ),
             "parameters": {
-                "type": "OBJECT",
+                "type": "object",
                 "properties": {
                     "data_json": {
-                        "type": "STRING",
+                        "type": "string",
                         "description": (
                             "Query results as a JSON array of objects."
                         ),
@@ -272,6 +273,10 @@ def build_tool_declarations():
                 "required": ["data_json"],
             },
         },
+    ]
+    return [
+        {"type": "function", "function": schema}
+        for schema in schemas
     ]
 
 

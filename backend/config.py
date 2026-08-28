@@ -12,25 +12,29 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # ------------------------------------------------------------------
-# LLM settings
+# LLM settings (OpenRouter - OpenAI-compatible API)
 # ------------------------------------------------------------------
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.7-flash")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL = os.getenv(
+    "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+)
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
 # Comma-separated fallback models tried when the primary model is
-# unavailable (429 rate limit / 503 high demand on Google's side).
-GEMINI_FALLBACK_MODELS = [
+# unavailable (429 rate limit / 503 high demand on the provider side).
+OPENROUTER_FALLBACK_MODELS = [
     m.strip()
     for m in os.getenv(
-        "GEMINI_FALLBACK_MODELS", "gemini-3.6-flash,gemini-2.5-flash"
+        "OPENROUTER_FALLBACK_MODELS",
+        "anthropic/claude-3.5-haiku,google/gemini-2.0-flash-001",
     ).split(",")
     if m.strip()
 ]
 
 def available_models():
     """Primary model followed by fallbacks, de-duplicated."""
-    models = [GEMINI_MODEL] + GEMINI_FALLBACK_MODELS
+    models = [OPENROUTER_MODEL] + OPENROUTER_FALLBACK_MODELS
     seen = set()
     result = []
     for model in models:

@@ -41,8 +41,8 @@ echo.
 echo =============================================================
 echo   FIRST-TIME SETUP - one step needed:
 echo   A file opened in Notepad (backend\.env).
-echo   Paste your Gemini API key after GEMINI_API_KEY= and save.
-echo   Get a FREE key at:  https://aistudio.google.com/apikey
+echo   Paste your OpenRouter API key after OPENROUTER_API_KEY= and save.
+echo   Get a FREE key at:  https://openrouter.ai/keys
 echo   Then run this script again.
 echo =============================================================
 echo.

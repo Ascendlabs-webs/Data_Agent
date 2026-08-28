@@ -26,8 +26,8 @@ if [ ! -f .env ]; then
     echo
     echo "============================================================="
     echo "  FIRST-TIME SETUP - one step needed:"
-    echo "  Edit backend/.env and set GEMINI_API_KEY=..."
-    echo "  Get a FREE key at:  https://aistudio.google.com/apikey"
+    echo "  Edit backend/.env and set OPENROUTER_API_KEY=..."
+    echo "  Get a FREE key at:  https://openrouter.ai/keys"
     echo "  Then run ./run.sh again."
     echo "============================================================="
     echo
