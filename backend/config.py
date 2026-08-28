@@ -27,7 +27,7 @@ OPENROUTER_FALLBACK_MODELS = [
     m.strip()
     for m in os.getenv(
         "OPENROUTER_FALLBACK_MODELS",
-        "anthropic/claude-3.5-haiku,google/gemini-2.0-flash-001",
+        "dots-studio/dots-3-note-preview:free,google/gemini-2.0-flash-001",
     ).split(",")
     if m.strip()
 ]

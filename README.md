@@ -277,7 +277,7 @@ Open **http://localhost:8000** and try:
 |----------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | ✅ Yes | — | Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
 | `OPENROUTER_MODEL` | No | `nvidia/nemotron-3.5-lightning` | Primary model id used via OpenRouter |
-| `OPENROUTER_FALLBACK_MODELS` | No | `anthropic/claude-3.5-haiku,google/gemini-2.0-flash-001` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
+| `OPENROUTER_FALLBACK_MODELS` | No | `dots-studio/dots-3-note-preview:free,google/gemini-2.0-flash-001` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
 
