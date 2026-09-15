@@ -231,6 +231,10 @@ def execute_query(sql, db="grocery"):
     # Strip a single wrapping paren pair: "(SELECT ...)" -> "SELECT ..."
     if statement.startswith("(") and statement.endswith(")"):
         statement = statement[1:-1].strip()
+    # Drop trailing semicolons: LLMs habitually terminate queries with ";"
+    # but the safety guard below rejects ";" (multi-statement protection).
+    # Interior semicolons are still rejected, so this stays read-only.
+    statement = statement.rstrip(";").strip()
     lowered = statement.lower()
 
     if not lowered.startswith("select") and not lowered.startswith("with"):
@@ -249,7 +253,7 @@ def execute_query(sql, db="grocery"):
         try:
             cursor = connection.cursor()
             start = time.perf_counter()
-            cursor.execute(sql)
+            cursor.execute(statement)
             columns = [d[0] for d in cursor.description or []]
             fetched = cursor.fetchmany(MAX_QUERY_ROWS + 1)
             # Normalize RealDict-style rows to tuples if needed
@@ -295,7 +299,7 @@ def explain_plan(sql, db="grocery"):
         sql: SQL SELECT statement.
         db: database name.
     """
-    statement = (sql or "").strip()
+    statement = (sql or "").strip().rstrip(";").strip()
     if not statement.lower().lstrip("(").startswith(("select", "with")):
         return {"success": False, "error": "Only SELECT queries can be explained."}
     if _FORBIDDEN.search(statement):
@@ -305,10 +309,10 @@ def explain_plan(sql, db="grocery"):
         try:
             cursor = connection.cursor()
             if _is_postgres(db):
-                cursor.execute("EXPLAIN " + sql)
+                cursor.execute("EXPLAIN " + statement)
                 plan = [" ".join(str(c) for c in r) for r in cursor.fetchall()]
             else:
-                cursor.execute("EXPLAIN QUERY PLAN " + sql)
+                cursor.execute("EXPLAIN QUERY PLAN " + statement)
                 plan = [" | ".join(str(c) for c in r) for r in cursor.fetchall()]
             return {"success": True, "plan": plan[:20]}
         finally:

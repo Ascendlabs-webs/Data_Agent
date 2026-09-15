@@ -80,7 +80,11 @@ function md(text) {
   // Parse markdown first, then strip dangerous tags (no pre-escape —
   // escaping first breaks **bold**, tables and code blocks).
   try {
-    const html = marked.parse(String(text || ""));
+    // Strip markdown image embeds: charts/diagrams render as live
+    // artifacts, so any ![caption](url) in model text is a hallucinated
+    // reference that would show as a broken image icon.
+    const cleaned = String(text || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "");
+    const html = marked.parse(cleaned);
     return html
       .replace(/<script[\s\S]*?<\/script>/gi, "")
       .replace(/\son\w+="[^"]*"/gi, "")
@@ -1324,7 +1328,6 @@ function showView(view) {
   const errorBanner = document.getElementById("error-banner");
   const scrollBtn = els.scrollBottom;
   const analyticsView = document.getElementById("analytics-view");
-  const chatParticles = document.getElementById("chat-particles");
 
   $$(".nav-btn").forEach((b) => b.classList.remove("active"));
   const activeBtn = $(`.nav-btn[data-view="${view}"]`);
@@ -1338,14 +1341,12 @@ function showView(view) {
     if (errorBanner) errorBanner.hidden = true;
     if (scrollBtn) scrollBtn.hidden = true;
     if (analyticsView) analyticsView.hidden = false;
-    if (chatParticles) chatParticles.hidden = true;
     if (!analyticsLoaded) loadAnalytics();
   } else {
     if (chatMain) chatMain.style.display = "block";
     if (inputWrap) inputWrap.style.display = "block";
     if (statusBar) statusBar.style.display = "flex";
     if (analyticsView) analyticsView.hidden = true;
-    if (chatParticles) chatParticles.hidden = false;
     if (state.messages.length === 0) showWelcome();
   }
 }
@@ -1652,29 +1653,78 @@ function init() {
   initAnalyticsParticles();
   // Initialize home particles
   initHomeParticles();
-  // Initialize chat particles
-  initChatParticles();
+  // Starfield backdrop
+  initStarfield();
 }
 
-function initChatParticles() {
-  const container = document.getElementById("chat-particles");
-  if (!container) return;
-  const count = 22;
-  for (let i = 0; i < count; i++) {
-    const p = document.createElement("div");
-    p.className = "chat-particle" + (i % 4 === 3 ? " alt" : "");
-    const size = 2 + Math.random() * 6;
-    const left = Math.random() * 100;
-    const delay = Math.random() * 20;
-    const duration = 14 + Math.random() * 20;
-    const opacity = 0.12 + Math.random() * 0.3;
-    p.style.cssText =
-      "width:" + size + "px;height:" + size + "px;" +
-      "left:" + left + "%;bottom:-" + size + "px;" +
-      "animation-delay:" + delay + "s;animation-duration:" + duration + "s;" +
-      "opacity:" + opacity + ";";
-    container.append(p);
+function initStarfield() {
+  const canvas = document.getElementById("starfield");
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext("2d");
+  const COLORS = ["139,92,246", "34,211,238", "196,181,253", "255,255,255"];
+  const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let stars = [];
+  let w = 0;
+  let h = 0;
+  function seed() {
+    const count = Math.min(220, Math.floor(w * h / 9000));
+    stars = [];
+    for (let i = 0; i < count; i++) {
+      stars.push({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        r: 0.4 + Math.random() * 1.4,
+        c: COLORS[(Math.random() * COLORS.length) | 0],
+        a: 0.25 + Math.random() * 0.55,
+        tw: 0.5 + Math.random() * 2,
+        ph: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 0.08,
+        vy: (Math.random() - 0.5) * 0.08,
+        glow: Math.random() < 0.06,
+      });
+    }
   }
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    seed();
+  }
+  function draw(t) {
+    ctx.clearRect(0, 0, w, h);
+    for (const s of stars) {
+      const tw = reduced ? 1 : 0.6 + 0.4 * Math.sin(t / 1000 * s.tw + s.ph);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, 6.2832);
+      if (s.glow) {
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = "rgba(" + s.c + ",0.8)";
+      } else {
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillStyle = "rgba(" + s.c + "," + (s.a * tw).toFixed(3) + ")";
+      ctx.fill();
+      if (!reduced) {
+        s.x += s.vx;
+        s.y += s.vy;
+        if (s.x < -4) s.x = w + 4;
+        else if (s.x > w + 4) s.x = -4;
+        if (s.y < -4) s.y = h + 4;
+        else if (s.y > h + 4) s.y = -4;
+      }
+    }
+    ctx.shadowBlur = 0;
+    if (!reduced) requestAnimationFrame(draw);
+  }
+  window.addEventListener("resize", resize);
+  resize();
+  if (reduced) draw(0);
+  else requestAnimationFrame(draw);
 }
 
 function initHomeParticles() {

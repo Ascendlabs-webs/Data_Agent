@@ -62,7 +62,7 @@ Your job:
 
 Rules:
 - The schema snapshot below is already verified — use it directly, no need to call get_schema first (only call it for structure/ER questions or if a query fails on unknown columns).
-- SQL must be a single read-only SELECT. Quote identifiers with double quotes, string literals with single quotes. Use LIMIT when appropriate.
+- SQL must be a single read-only SELECT. Quote identifiers with double quotes, string literals with single quotes. Use LIMIT when appropriate. Do not end the query with a semicolon.
 - Do not invent numbers: everything you state must come from query results.
 - If a query fails, fix the SQL by reasoning about the error and retry (up to 2 attempts).
 - Keep explanations short and human-friendly. Use markdown bullet lists for comparisons.
