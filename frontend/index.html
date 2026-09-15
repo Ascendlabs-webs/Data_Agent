@@ -3,11 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Data AI Agent</title>
+  <meta name="description" content="Data Agent — ask questions about your database in plain English. SQL, charts and diagrams generated live.">
+  <meta name="theme-color" content="#070812">
+  <title>Data Agent — Conversational Database Analyst</title>
   <link rel="icon" href="static/logo.png">
-  <link rel="stylesheet" href="static/style.css?v=19">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/style.css?v=30">
 </head>
 <body>
+  <div class="bg-orbs" aria-hidden="true"><span></span><span></span><span></span></div>
   <div id="app">
     <aside id="sidebar">
       <div class="sidebar-head">
@@ -21,6 +27,7 @@
         <button id="new-chat-btn" class="btn primary-btn" title="Start a new chat and save the current one">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
           New chat
+          <kbd>⌘K</kbd>
         </button>
       </div>
       <div class="sidebar-scroll">
@@ -41,6 +48,7 @@
           <div id="schema-panel" class="schema-panel" hidden></div>
         </section>
       </div>
+      <div class="sidebar-foot">Groq-powered · SQL transparent</div>
     </aside>
     <main id="main">
       <header id="topbar">
@@ -48,6 +56,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <span id="topbar-title">Data Agent</span>
+        <span class="topbar-pill">AI Analyst</span>
         <span id="topbar-db" class="topbar-db"></span>
       </header>
       <div id="error-banner" class="error-banner" hidden>
@@ -71,28 +80,37 @@
           <div class="welcome-mark">
             <img src="static/logo-full.png" alt="Data Agent logo">
           </div>
-          <h1>Data Agent</h1>
-          <p class="welcome-sub">Ask questions about your data. Explore your database using natural language — get SQL, charts and diagrams generated live.</p>
+          <div class="welcome-eyebrow">Conversational database analyst</div>
+          <h1>Ask data anything.</h1>
+          <p class="welcome-sub">Plain English in — verified SQL, interactive charts and diagrams out. Every number traced to a real query.</p>
+          <div class="welcome-stats">
+            <div><b>100%</b><span>SQL transparent</span></div>
+            <div><b>~12s</b><span>Groq median</span></div>
+            <div><b>5</b><span>agent tools</span></div>
+          </div>
           <p id="welcome-note" class="welcome-note" hidden></p>
            <div class="chips">
-             <button class="chip" data-prompt="Top 5 products by revenue — show a bar chart">Top 5 products by revenue — show a bar chart</button>
-             <button class="chip" data-prompt="Trend of monthly revenue over time">Trend of monthly revenue over time</button>
-             <button class="chip" data-prompt="Draw me the ER diagram for this database">Draw me the ER diagram for this database</button>
-             <button class="chip" data-prompt="Create a flowchart showing how orders flow through our system">Create a flowchart showing how orders flow through our system</button>
+             <button class="chip" data-prompt="Top 5 products by revenue — show a bar chart"><i>📊</i>Top 5 products by revenue — bar chart</button>
+             <button class="chip" data-prompt="Trend of monthly revenue over time"><i>📈</i>Monthly revenue trend</button>
+             <button class="chip" data-prompt="Draw me the ER diagram for this database"><i>🧬</i>ER diagram</button>
+             <button class="chip" data-prompt="Create a flowchart showing how orders flow through our system"><i>🔀</i>Order flowchart</button>
            </div>
            <div class="welcome-action">
              <button id="show-tables-btn" class="btn secondary-btn" title="View all database tables and stored data">
                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-               Database
+               Explore database
              </button>
            </div>
         </div>
       </section>
-      <div id="input-bar">
-        <textarea id="input" placeholder="Ask anything about the database..." rows="1"></textarea>
-        <button id="send-btn" class="send-btn" title="Send (Enter)" aria-label="Send message">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
-        </button>
+      <div class="input-wrap">
+        <div id="input-bar">
+          <textarea id="input" placeholder="Ask anything about the database…  (Enter to send)" rows="1"></textarea>
+          <button id="send-btn" class="send-btn" title="Send (Enter)" aria-label="Send message">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+        <div class="input-hint">Enter ↵ send · Shift+Enter newline · every answer shows its SQL</div>
       </div>
     </main>
   </div>
@@ -119,6 +137,6 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-  <script src="static/app.js?v=21"></script>
+  <script src="static/app.js?v=30"></script>
 </body>
 </html>

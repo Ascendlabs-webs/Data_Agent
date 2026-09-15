@@ -764,13 +764,15 @@ function sendMessage(text) {
 
   setStatus("ok", "Agent is working…");
   const thinkStart = Date.now();
+  const STAGES = { get_schema: "Reading schema…", execute_query: "Running SQL…", generate_chart: "Drawing chart…", generate_flowchart: "Drawing diagram…", explain_data: "Crunching stats…" };
   const thinkTimer = setInterval(() => {
     const secs = Math.round((Date.now() - thinkStart) / 1000);
-    setStatus("ok", "Agent is working… (" + secs + "s)");
+    setStatus("ok", (state.stage || "Agent is working…") + " (" + secs + "s)");
   }, 2000);
 
   const handleEvent = (ev) => {
     if (ev.type === "delta") {
+      state.stage = "Writing answer…";
       assistant.content += ev.text || "";
       aEl.contentEl.innerHTML = md(assistant.content) + (state.streaming ? '<span class="cursor"></span>' : "");
       autoscroll();
@@ -781,6 +783,8 @@ function sendMessage(text) {
       aEl.artifactsEl.append(sqlCard(artifact));
       autoscroll();
     } else if (ev.type === "tool") {
+      state.stage = STAGES[ev.name] || ("Running " + toolLabel(ev.name || "") + "…");
+      setStatus("ok", state.stage);
       const name = toolLabel(ev.name || "");
       const chip = makeEl("div", "chip");
       chip.append(makeEl("span", "spinner"), document.createTextNode("Running " + name + "…"));
@@ -1229,6 +1233,12 @@ function init() {
     if (window.innerWidth > 880) {
       els.sidebar.classList.remove("open");
       els.sidebarFade.hidden = true;
+    }
+  });
+  window.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      newChat();
     }
   });
 }
