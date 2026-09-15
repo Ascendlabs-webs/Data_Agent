@@ -37,7 +37,7 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 
 /* starfield particle backdrop */
 #starfield{position:fixed;inset:0;z-index:0;pointer-events:none}
-.star-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(rgba(148,163,255,.08) 1px,transparent 1.4px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse 90% 85% at 60% 30%,#000 25%,transparent 78%);mask-image:radial-gradient(ellipse 90% 85% at 60% 30%,#000 25%,transparent 78%)}
+.star-grid{position:fixed;inset:0;z-index:0;pointer-events:none;background-image:radial-gradient(rgba(148,163,255,.1) 1px,transparent 1.4px);background-size:26px 26px;-webkit-mask-image:radial-gradient(ellipse 90% 85% at 60% 30%,#000 25%,transparent 78%);mask-image:radial-gradient(ellipse 90% 85% at 60% 30%,#000 25%,transparent 78%)}
 .orbit{position:fixed;z-index:0;pointer-events:none;border:1px solid rgba(139,92,246,.1);border-radius:50%}
 .orbit-a{width:1100px;height:640px;left:52%;top:-320px;transform:translateX(-50%)}
 .orbit-b{width:820px;height:480px;left:56%;top:-220px;transform:translateX(-50%);border-color:rgba(34,211,238,.07)}

@@ -1667,20 +1667,20 @@ function initStarfield() {
   let w = 0;
   let h = 0;
   function seed() {
-    const count = Math.min(220, Math.floor(w * h / 9000));
+    const count = Math.min(340, Math.floor(w * h / 5200));
     stars = [];
     for (let i = 0; i < count; i++) {
       stars.push({
         x: Math.random() * w,
         y: Math.random() * h,
-        r: 0.4 + Math.random() * 1.4,
+        r: 0.6 + Math.random() * 1.8,
         c: COLORS[(Math.random() * COLORS.length) | 0],
-        a: 0.25 + Math.random() * 0.55,
+        a: 0.35 + Math.random() * 0.55,
         tw: 0.5 + Math.random() * 2,
         ph: Math.random() * Math.PI * 2,
         vx: (Math.random() - 0.5) * 0.08,
         vy: (Math.random() - 0.5) * 0.08,
-        glow: Math.random() < 0.06,
+        glow: Math.random() < 0.1,
       });
     }
   }
@@ -1702,7 +1702,7 @@ function initStarfield() {
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.r, 0, 6.2832);
       if (s.glow) {
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 8;
         ctx.shadowColor = "rgba(" + s.c + ",0.8)";
       } else {
         ctx.shadowBlur = 0;

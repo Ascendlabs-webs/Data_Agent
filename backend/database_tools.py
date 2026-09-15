@@ -22,6 +22,13 @@ try:
 except OSError:
     CHART_FOLDER = os.path.join(os.path.dirname(__file__), "..", "..", "tmp", "charts")
 
+# Vivid per-category palette (same hues as the frontend analytics
+# dashboard): one distinct color per bar / pie slice, MITRA-style.
+CHART_COLORS = [
+    "#8B5CF6", "#06B6D4", "#10B981", "#F59E0B",
+    "#F43F5E", "#EC4899", "#14B8A6", "#3B82F6",
+]
+
 
 def _is_postgres(db):
     info = DATABASES.get(db, {})
@@ -395,14 +402,21 @@ def generate_chart(
         import plotly.express as px  # lazy: cuts cold start by ~10s
 
         if chart_type == "bar":
-            figure = px.bar(rows, x=x_column, y=y_column, title=title)
+            # One vivid color per category (with legend), MITRA-style.
+            figure = px.bar(
+                rows, x=x_column, y=y_column, title=title,
+                color=x_column, color_discrete_sequence=CHART_COLORS,
+            )
         elif chart_type == "line":
             figure = px.line(rows, x=x_column, y=y_column, title=title,
                              markers=True)
         elif chart_type == "pie":
-            figure = px.pie(rows, names=x_column, values=y_column, title=title)
+            figure = px.pie(
+                rows, names=x_column, values=y_column, title=title,
+                color_discrete_sequence=CHART_COLORS,
+            )
         elif chart_type == "histogram":
-            figure = px.histogram(rows, x=x_column, nbinsx=30, title=title)
+            figure = px.histogram(rows, x=x_column, nbins=30, title=title)
         elif chart_type == "box":
             figure = px.box(rows, y=y_column or x_column, title=title)
         else:
