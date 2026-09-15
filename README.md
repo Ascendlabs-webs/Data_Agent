@@ -37,7 +37,7 @@ An LLM-powered agent that lets non-technical users ask questions in plain Englis
 
 ## Overview
 
-Data AI Agent is a ChatGPT-style interface that sits in front of a SQLite database. Users type natural-language questions; the Gemini LLM translates them into SQL, executes the queries, and responds with real numbers, interactive Plotly charts and Mermaid diagrams — all streamed live in the browser.
+Data AI Agent is a ChatGPT-style interface that sits in front of a SQLite database. Users type natural-language questions; the LLM translates them into SQL, executes the queries, and responds with real numbers, interactive Plotly charts and Mermaid diagrams — all streamed live in the browser.
 
 **Key insight:** The agent never invents numbers. Every statistic it states comes from an actual database query result, making answers trustworthy and auditable. The generated SQL is always shown in a transparent card with Copy and Run buttons so users can verify every query.
 
@@ -49,7 +49,7 @@ Data AI Agent is a ChatGPT-style interface that sits in front of a SQLite databa
 
 - **Streaming chat** — Token-by-token streaming responses via Server-Sent Events give an instant, interactive feel. The model starts typing while queries are still running.
 
-- **5 LLM tools** — A hand-crafted tool registry with deterministic JSON schemas exposed to Gemini: `get_schema`, `execute_query`, `generate_chart`, `generate_flowchart`, `explain_data`.
+- **5 LLM tools** — A hand-crafted tool registry with deterministic JSON schemas exposed to the model: `get_schema`, `execute_query`, `generate_chart`, `generate_flowchart`, `explain_data`.
 
 - **SQL transparency** — Every generated SQL query appears in a dedicated card with a **Copy** button and a **▶ Run** button so users can verify, edit and re-execute it themselves.
 
@@ -69,7 +69,7 @@ Data AI Agent is a ChatGPT-style interface that sits in front of a SQLite databa
 
 - **Query retry logic** — If a query fails, the model reads the error message, corrects the SQL and retries automatically (up to 2 attempts) before surfacing the failure to the user.
 
-- **Rate-limit handling** — 429 responses from Gemini's free tier are caught; the agent waits the API-recommended delay and retries, streaming a "waiting..." notice to the UI.
+- **Rate-limit handling** — 429/503 responses from the provider are caught; the agent waits and retries or falls back to the next model, streaming a "waiting..." notice to the UI.
 
 - **One-click launcher** — `run.bat` (Windows) / `run.sh` (macOS/Linux) creates the virtual environment, installs dependencies and starts the server in one step.
 
@@ -113,7 +113,7 @@ Multiple pinned charts arranged in a persistent grid. Each panel shows the chart
 │  │  Chat UI │  │ Dashboard│  │  History / Sidebar │ │
 │  └────┬─────┘  └──────────┘  └────────────────────┘ │
 └───────┼─────────────────────────────────────────────┘
-        │  POST /api/chat  (JSON response with events[])
+        │  POST /api/chat/stream (SSE) · /api/chat (JSON)
         │  GET  /api/databases · /api/schema
         │  POST /api/query · GET|POST /api/history
         ▼
@@ -126,7 +126,7 @@ Multiple pinned charts arranged in a persistent grid. Each panel shows the chart
 ┌─────────────────────────────────────────────────────┐
 │              Streaming Agent  (backend/agent.py)     │
 │                                                      │
-│  build_contents()  →  Gemini streaming API           │
+│  chat.completions  →  OpenAI-compatible streaming API   │
 │       ↑                      ↓                       │
 │  function response    function call                  │
 │       ↑                      ↓                       │
@@ -146,7 +146,7 @@ Multiple pinned charts arranged in a persistent grid. Each panel shows the chart
 
 **Agent flow:**
 ```
-user message ──▶ Gemini (streaming) ──▶ function call ──▶ tool executes
+user message ──▶ model (streaming) ──▶ function call ──▶ tool executes
       ▲                                                        │
       └──────── result fed back to model ◀────────────────────┘
 ```
@@ -171,7 +171,7 @@ Tool schemas are **explicit JSON declarations** (not auto-generated from Python 
 
 ## Streaming Protocol
 
-Events are collected server-side and returned as a JSON array `{events: [...]}` from `POST /api/chat`. Each event has a `type` field:
+Events stream as Server-Sent Events from `POST /api/chat/stream` (`data: {...}` per event), with `POST /api/chat` kept as a JSON `{events: [...]}` fallback. Each event has a `type` field:
 
 | Event | Payload | Description |
 |-------|---------|-------------|
@@ -193,8 +193,8 @@ databsae-ai-agent/
 │   ├── style.css               Dark ChatGPT-like theme (32 KB)
 │   └── app.js                  SSE client, artifact renderers, history, dashboard
 │
-├── backend/                    FastAPI + Gemini agent
-│   ├── app.py                  HTTP layer: /api/chat, schema, query, history
+├── backend/                    FastAPI + Groq/OpenRouter agent
+│   ├── app.py                  HTTP layer: /api/chat/stream (SSE), schema, query, history
 │   ├── agent.py                Streaming agent loop (function calling + SSE events)
 │   ├── tool_registry.py        5 agent tools + explicit JSON function schemas
 │   ├── database_tools.py       get_schema / execute_query / generate_chart
@@ -215,7 +215,7 @@ databsae-ai-agent/
 │   └── index.py                Vercel serverless entrypoint
 │
 ├── requirements.txt            Root-level deps (required by Vercel builder)
-├── vercel.json                 Vercel build config (includeFiles, routes)
+├── vercel.json                 Vercel functions config (streaming, rewrites)
 ├── run.bat                     One-click launcher — Windows
 └── run.sh                      One-click launcher — macOS/Linux
 ```
@@ -234,7 +234,7 @@ chmod +x run.sh
 ./run.sh
 ```
 
-The launcher creates the virtual environment, installs dependencies and opens the browser automatically. On the first run it will prompt for your Gemini API key.
+The launcher creates the virtual environment, installs dependencies and opens the browser automatically. On the first run it will prompt for your Groq or OpenRouter API key.
 
 ### Option B — Manual
 
@@ -275,9 +275,12 @@ Open **http://localhost:8000** and try:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | ✅ Yes | — | Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
-| `OPENROUTER_MODEL` | No | `nvidia/nemotron-3.5-lightning` | Primary model id used via OpenRouter |
-| `OPENROUTER_FALLBACK_MODELS` | No | `dots-studio/dots-3-note-preview:free,google/gemini-2.0-flash-001` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
+| `GROQ_API_KEY` | ✅ Yes (or OpenRouter) | — | Get a key at [console.groq.com/keys](https://console.groq.com/keys) |
+| `GROQ_MODEL` | No | `openai/gpt-oss-120b` | Primary Groq model id |
+| `GROQ_FALLBACK_MODELS` | No | `openai/gpt-oss-20b,qwen/qwen3.8-27b` | Fallbacks on 429/503 |
+| `OPENROUTER_API_KEY` | ✅ if no Groq key | — | Get a key at [openrouter.ai/keys](https://openrouter.ai/keys) |
+| `OPENROUTER_MODEL` | No | `nvidia/nemotron-3.5-lightning:free` | Primary model id used via OpenRouter |
+| `OPENROUTER_FALLBACK_MODELS` | No | `dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free` | Comma-separated fallback model ids tried when the primary is busy (429/503) |
 
 Copy `backend/.env.example` to `backend/.env` and fill in your key.
 
@@ -289,7 +292,8 @@ For Vercel deployments, set these in **Project Settings → Environment Variable
 
 | Method | Endpoint | Body / Params | Description |
 |--------|---------|--------------|-------------|
-| `POST` | `/api/chat` | `{messages, database}` | Run agent, returns `{events:[...]}` |
+| `POST` | `/api/chat/stream` | `{messages, database}` | Run agent, streams SSE `data: {...}` events |
+| `POST` | `/api/chat` | `{messages, database}` | Run agent, returns `{events:[...]}` (fallback) |
 | `GET` | `/api/databases` | — | List registered databases |
 | `GET` | `/api/schema` | `?database=grocery` | Full schema for a database |
 | `POST` | `/api/query` | `{sql, database}` | Execute raw SQL SELECT |
@@ -348,11 +352,11 @@ The database selector in the UI updates automatically. The agent discovers the s
 
 ## Known Limitations
 
-- **Read-only** — Only SQL `SELECT` statements are permitted. No INSERT / UPDATE / DELETE.
+- **Read-only** — Only single `SELECT`/`WITH ... SELECT` statements are permitted over a read-only (`mode=ro`) SQLite connection. Multi-statements, comments and write keywords are rejected.
 - **SQLite only** — The current implementation connects to SQLite files. PostgreSQL / MySQL support would require a connection-string abstraction.
 - **History is ephemeral on Vercel** — The JSON history file lives in `/tmp` on serverless deployments and is reset between cold starts. A persistent store (e.g. Vercel KV) would fix this.
 - **Chart file saving disabled on Vercel** — Chart HTML files fall back to in-memory JSON only; no HTML is written to disk.
-- **Context window** — Only the last 20 messages are sent to the model to stay within token limits.
+- **Context window** — Only the last 10 messages (4000 chars each) are sent to the model to stay within token limits.
 
 ---
 
@@ -360,7 +364,7 @@ The database selector in the UI updates automatically. The agent discovers the s
 
 | Layer | Technology |
 |-------|-----------|
-| LLM | OpenRouter (default `nvidia/nemotron-3.5-lightning`) via `openai` SDK |
+| LLM | Groq (default `openai/gpt-oss-120b`) with OpenRouter fallback via `openai` SDK |
 | Backend | Python 3.10+, FastAPI, Uvicorn |
 | Data | SQLite, Pandas, NumPy |
 | Charts | Plotly Express (server) + Plotly.js (client) |

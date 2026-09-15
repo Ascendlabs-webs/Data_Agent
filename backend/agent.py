@@ -59,7 +59,7 @@ Your job:
 5. Optionally call explain_data to compute summary statistics.
 
 Rules:
-- Always verify the schema with get_schema before writing SQL for an unfamiliar database.
+- The schema snapshot below is already verified — use it directly, no need to call get_schema first (only call it for structure/ER questions or if a query fails on unknown columns).
 - SQL must be a single read-only SELECT. Quote identifiers with double quotes, string literals with single quotes. Use LIMIT when appropriate.
 - Do not invent numbers: everything you state must come from query results.
 - If a query fails, fix the SQL by reasoning about the error and retry (up to 2 attempts).
@@ -69,12 +69,33 @@ Rules:
 AVAILABLE DATABASES (pass the name in the 'database' argument):
 {databases}
 
-CURRENTLY SELECTED DATABASE: {selected}"""
+CURRENTLY SELECTED DATABASE: {selected}
+
+SCHEMA SNAPSHOT ({selected}):
+{schema_snapshot}"""
 
 
 # ------------------------------------------------------------------
 # Conversation helpers
 # ------------------------------------------------------------------
+
+def _compact_schema(database, max_tables=12, max_cols=20):
+    """Small schema snapshot injected into the system prompt (saves 1 tool turn)."""
+    try:
+        from backend.database_tools import get_schema as _get_schema
+        schema = _get_schema(database)
+    except Exception:
+        return "(schema unavailable — call get_schema)"
+    lines = []
+    for table in sorted(schema)[:max_tables]:
+        info = schema[table]
+        cols = ", ".join(
+            c["name"] + ("*" if c.get("primary_key") else "")
+            for c in info.get("columns", [])[:max_cols]
+        )
+        lines.append(f"- {table}({cols}) [{info.get('row_count', '?')} rows]")
+    return "\n".join(lines)[:3000] or "(empty)"
+
 
 def build_messages(messages, database):
     """Convert frontend {role, content} messages into chat-completion messages."""
@@ -82,14 +103,17 @@ def build_messages(messages, database):
         f"- {name}: {info['description']}" for name, info in DATABASES.items()
     )
     system = SYSTEM_INSTRUCTIONS.format(
-        databases=database_list, selected=database
+        databases=database_list, selected=database,
+        schema_snapshot=_compact_schema(database),
     )
     chat = [{"role": "system", "content": system}]
-    for message in messages[-20:]:
+    for message in messages[-10:]:
         role = message.get("role", "user")
         if role != "assistant":
             role = "user"
-        text = message.get("content", "")
+        text = str(message.get("content", ""))[:4000]
+        if not text.strip():
+            continue
         chat.append({"role": role, "content": text})
     if chat[-1]["role"] != "user":
         chat.append({"role": "user", "content": "Hello"})

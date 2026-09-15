@@ -6,9 +6,9 @@ databases. Every function returns plain JSON-serialisable data so
 results can be streamed to the frontend and fed back to the model.
 """
 import os
+import re
 import sqlite3
-
-import plotly.express as px
+import time
 
 from backend.config import DATABASES, MAX_QUERY_ROWS
 
@@ -30,9 +30,18 @@ def _connect(db):
             f"Unknown database '{db}'. Available: {', '.join(DATABASES)}"
         )
     path = DATABASES[db]["path"]
-    connection = sqlite3.connect(path)
+    # Read-only URI: even if the SQL guard is bypassed, writes fail.
+    connection = sqlite3.connect(
+        f"file:{path}?mode=ro", uri=True, timeout=10, check_same_thread=False
+    )
     connection.row_factory = sqlite3.Row
     return connection
+
+
+_FORBIDDEN = re.compile(
+    r"(;|--|\b(insert|update|delete|drop|alter|create|replace|attach|detach|pragma|vacuum|reindex|transaction|commit|rollback)\b|/\*)",
+    re.IGNORECASE,
+)
 
 
 def _jsonable(value):
@@ -118,21 +127,32 @@ def execute_query(sql, db="grocery"):
         {"success": bool, "row_count": int, "columns": [...],
          "data": [...]} or an error object.
     """
-    statement = sql.strip().lstrip("(").lower()
+    statement = sql.strip()
+    # Strip a single wrapping paren pair: "(SELECT ...)" -> "SELECT ..."
+    if statement.startswith("(") and statement.endswith(")"):
+        statement = statement[1:-1].strip()
+    lowered = statement.lower()
 
-    if not statement.startswith("select"):
+    if not lowered.startswith("select") and not lowered.startswith("with"):
         return {
             "success": False,
             "error": "Only SELECT queries are allowed for safety.",
         }
+    if _FORBIDDEN.search(statement):
+        return {
+            "success": False,
+            "error": "Only single read-only SELECT statements are allowed.",
+        }
 
     try:
         connection = _connect(db)
-        cursor = connection.cursor()
-        cursor.execute(sql)
-        columns = [desc[0] for desc in cursor.description or []]
-        rows = cursor.fetchmany(MAX_QUERY_ROWS + 1)
-        connection.close()
+        try:
+            cursor = connection.cursor()
+            cursor.execute(sql)
+            columns = [desc[0] for desc in cursor.description or []]
+            rows = cursor.fetchmany(MAX_QUERY_ROWS + 1)
+        finally:
+            connection.close()
 
         truncated = len(rows) > MAX_QUERY_ROWS
         data = [
@@ -207,9 +227,24 @@ def generate_chart(
                 "error": f"Column '{y_column}' not found in result data.",
             }
     else:
-        y_column = y_column or rows[0][x_column]
+        # Pie needs a values column: use y_column if valid, else first
+        # numeric column that isn't x_column.
+        if y_column not in rows[0]:
+            numeric = [
+                k for k, v in rows[0].items()
+                if k != x_column and isinstance(v, (int, float))
+                and not isinstance(v, bool)
+            ]
+            if not numeric:
+                return {
+                    "success": False,
+                    "error": "Pie chart needs a numeric values column.",
+                }
+            y_column = numeric[0]
 
     try:
+        import plotly.express as px  # lazy: cuts cold start by ~10s
+
         if chart_type == "bar":
             figure = px.bar(rows, x=x_column, y=y_column, title=title)
         elif chart_type == "line":
@@ -228,7 +263,9 @@ def generate_chart(
             margin={"l": 40, "r": 20, "t": 50, "b": 40},
         )
 
-        filepath = os.path.join(CHART_FOLDER, f"chart_{chart_type}.html")
+        filepath = os.path.join(
+            CHART_FOLDER, f"chart_{chart_type}_{int(time.time()*1000)}.html"
+        )
         try:
             figure.write_html(filepath)
         except OSError:

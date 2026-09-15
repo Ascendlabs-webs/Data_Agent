@@ -75,11 +75,29 @@ function esc(text) {
 }
 
 function md(text) {
+  // Parse markdown first, then strip dangerous tags (no pre-escape —
+  // escaping first breaks **bold**, tables and code blocks).
   try {
-    return marked.parse(esc(text));
+    const html = marked.parse(String(text || ""));
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/\son\w+="[^"]*"/gi, "")
+      .replace(/\son\w+='[^']*'/gi, "");
   } catch (err) {
     return "<p>" + esc(text) + "</p>";
   }
+}
+
+function toast(msg) {
+  let t = document.querySelector(".toast");
+  if (!t) {
+    t = makeEl("div", "toast");
+    document.body.append(t);
+  }
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove("show"), 2600);
 }
 
 function makeEl(tag, cls, text) {
@@ -554,7 +572,9 @@ function plotChart(card, artifact) {
   try {
     Plotly.newPlot(plot, artifact.figure.data || [], brandChartLayout(artifact.figure.layout), {
       responsive: true,
-      displayModeBar: false,
+      displayModeBar: true,
+      displaylogo: false,
+      modeBarButtonsToRemove: ["lasso2d", "select2d"],
     });
   } catch (err) {
     plot.textContent = "Could not render chart.";
@@ -668,6 +688,11 @@ function renderQueryResult(result) {
   return box;
 }
 
+function toCSV(columns, rows) {
+  const q = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  return [columns.map(q).join(","), ...rows.map((r) => columns.map((c) => q(r[c])).join(","))].join("\n");
+}
+
 function buildTable(columns, rows, rowCount) {
   const wrap = makeEl("div", "table-wrap");
   const table = makeEl("table", "data-table");
@@ -676,7 +701,7 @@ function buildTable(columns, rows, rowCount) {
   columns.forEach((col) => trHead.append(makeEl("th", null, col)));
   thead.append(trHead);
   const tbody = makeEl("tbody");
-  rows.forEach((row) => {
+  const addRow = (row) => {
     const tr = makeEl("tr");
     columns.forEach((col) => {
       const val = row[col];
@@ -685,27 +710,31 @@ function buildTable(columns, rows, rowCount) {
       tr.append(td);
     });
     tbody.append(tr);
-  });
+  };
+  // Render first 5 only; expand appends the REST (no duplicates).
+  rows.slice(0, 5).forEach(addRow);
   table.append(thead, tbody);
   wrap.append(table);
+  const bar = makeEl("div", "table-bar");
   if (rowCount > 5 && rows.length > 5) {
-    const hidden = rows.slice(5);
     const more = button("show-more-btn", "Show all " + rowCount + " rows", "Expand table", () => {
-      hidden.forEach((row) => {
-        const tr = makeEl("tr");
-        columns.forEach((col) => {
-          const val = row[col];
-          const td = makeEl("td", null, cellValue(val));
-          if (isNumeric(val)) td.dataset.num = "true";
-          tr.append(td);
-        });
-        tbody.append(tr);
-      });
+      rows.slice(5).forEach(addRow);
       more.remove();
       autoscroll();
     });
-    wrap.append(more);
+    bar.append(more);
   }
+  const csv = button("show-more-btn", "⤓ CSV", "Download CSV", () => {
+    const blob = new Blob([toCSV(columns, rows)], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "query-result.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast("CSV downloaded");
+  });
+  bar.append(csv);
+  if (bar.children.length) wrap.append(bar);
   return wrap;
 }
 
@@ -879,51 +908,79 @@ function sendMessage(text) {
     database: state.database,
   };
 
-  fetch("/api/chat", {
+  const finish = () => {
+    state.streaming = false;
+    clearInterval(thinkTimer);
+    try { cursor.remove(); } catch (e) {}
+    if (!failed) {
+      setStatus("ok", "Done");
+      hideError();
+    }
+    try {
+      aEl.contentEl.innerHTML = md(assistant.content);
+    } catch (renderErr) {
+      setStatus("err", "Render error: " + renderErr.message);
+    }
+    setStreamingUI(false);
+    saveHistoryEntry();
+    saveCurrentSession();
+    autoscroll();
+  };
+
+  const onEvent = (ev) => {
+    try {
+      handleEvent(ev);
+    } catch (evErr) {
+      setStatus("warn", "Event error: " + (evErr.message || "unknown"));
+    }
+  };
+
+  // Skeleton shimmer while the first event streams in.
+  const skel = makeEl("div", "skeleton");
+  skel.innerHTML = "<span></span><span></span><span></span>";
+  aEl.contentEl.append(skel);
+
+  fetch("/api/chat/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
     body: JSON.stringify(payload),
   })
     .then((res) => {
       if (!res.ok) throw new Error("Chat request failed (" + res.status + ")");
-      return res.json();
-    })
-    .then((data) => {
-      if (!data || !Array.isArray(data.events)) {
-        let raw = "";
-        try { raw = JSON.stringify(data); } catch (err) { raw = String(data); }
-        throw new Error("Unexpected response from agent: " + String(raw).slice(0, 250));
+      const ctype = res.headers.get("content-type") || "";
+      if (!ctype.includes("text/event-stream") || !res.body) {
+        return res.json().then((data) => {
+          if (skel.parentNode) skel.remove();
+          (data.events || []).forEach(onEvent);
+          finish();
+        });
       }
-      data.events.forEach((ev) => {
-        try {
-          handleEvent(ev);
-        } catch (evErr) {
-          setStatus("warn", "Event error: " + (evErr.message || "unknown"));
-        }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let first = true;
+      const pump = () => reader.read().then(({ done, value }) => {
+        if (done) { finish(); return; }
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop();
+        parts.forEach((chunk) => {
+          const line = chunk.trim();
+          if (!line.startsWith("data:")) return;
+          try {
+            if (first) { first = false; if (skel.parentNode) skel.remove(); }
+            onEvent(JSON.parse(line.slice(5).trim()));
+          } catch (e) {}
+        });
+        return pump();
       });
+      return pump();
     })
     .catch((err) => {
       failed = true;
       setStatus("err", "Chat failed: " + err.message);
       showError(err.message || "Could not reach the agent.");
-    })
-    .finally(() => {
-      state.streaming = false;
-      clearInterval(thinkTimer);
-      cursor.remove();
-      if (!failed) {
-        setStatus("ok", "Done");
-        hideError();
-      }
-      try {
-        aEl.contentEl.innerHTML = md(assistant.content);
-      } catch (renderErr) {
-        setStatus("err", "Render error: " + renderErr.message);
-      }
-      setStreamingUI(false);
-      saveHistoryEntry();
-      saveCurrentSession();
-      autoscroll();
+      finish();
     });
 }
 

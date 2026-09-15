@@ -38,4 +38,5 @@ echo "[3/4] Starting server..."
 (open http://localhost:8000 2>/dev/null || xdg-open http://localhost:8000 2>/dev/null) || true
 echo "[4/4] Server running at http://localhost:8000  (press Ctrl+C to stop)"
 echo
-exec python -m uvicorn app:app --port 8000
+cd "$SCRIPT_DIR"
+exec python -m uvicorn backend.app:app --port 8000

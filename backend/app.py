@@ -6,12 +6,14 @@ exposes endpoints for schema discovery, raw SQL execution, database
 listing and query history/favorites.
 """
 from pathlib import Path
+import json
+import time
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.agent import stream_chat
 from backend.config import DATABASES, database_names
@@ -41,41 +43,89 @@ app.add_middleware(
 # ------------------------------------------------------------------
 
 class ChatRequest(BaseModel):
-    messages: list
+    messages: list = Field(default_factory=list)
     database: str = "grocery"
 
 
 class QueryRequest(BaseModel):
-    sql: str
+    sql: str = Field(max_length=8000)
     database: str = "grocery"
+
+
+# ------------------------------------------------------------------
+# Simple in-memory rate limit (per IP): 40 chat reqs / minute.
+# Protects the LLM key from accidental burn. Resets on redeploy.
+# ------------------------------------------------------------------
+
+_RATE: dict = {}
+
+def _rate_limited(request: Request, limit: int = 40, window: int = 60) -> bool:
+    try:
+        ip = request.client.host if request.client else "unknown"
+    except Exception:
+        ip = "unknown"
+    now = time.time()
+    bucket = _RATE.setdefault(ip, [])
+    while bucket and bucket[0] <= now - window:
+        bucket.pop(0)
+    if len(bucket) >= limit:
+        return True
+    bucket.append(now)
+    return False
+
+
+def _resolve_db(name: str) -> str:
+    return name if name in database_names() else "grocery"
+
+
+def _validate_chat(request: ChatRequest):
+    if not request.messages or not any(
+        (m or {}).get("content") for m in request.messages
+    ):
+        raise HTTPException(status_code=400, detail="No message provided.")
+
+
+def _sse(event: dict) -> bytes:
+    return ("data: " + json.dumps(event) + "\n\n").encode("utf-8")
+
+
+# ------------------------------------------------------------------
+# Chat (JSON for backwards-compat + SSE stream for live tokens)
+# ------------------------------------------------------------------
+
+@app.post("/api/chat")
+def chat(request: ChatRequest, raw: Request = None):
+    """Run the agent and return the full event stream as a single JSON response."""
+    _validate_chat(request)
+    if raw is not None and _rate_limited(raw):
+        raise HTTPException(status_code=429, detail="Too many requests. Wait a minute and retry.")
+    events = list(stream_chat(request.messages, database=_resolve_db(request.database)))
+    return {"events": events}
+
+
+@app.post("/api/chat/stream")
+def chat_stream(request: ChatRequest, raw: Request = None):
+    """Same agent loop, streamed as Server-Sent Events for instant UI."""
+    _validate_chat(request)
+    if raw is not None and _rate_limited(raw):
+        raise HTTPException(status_code=429, detail="Too many requests. Wait a minute and retry.")
+    database = _resolve_db(request.database)
+    messages = request.messages
+
+    def gen():
+        try:
+            for ev in stream_chat(messages, database=database):
+                yield _sse(ev)
+        except Exception as error:  # noqa: BLE001
+            yield _sse({"type": "error", "message": str(error)})
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 class HistoryRequest(BaseModel):
     question: str
     sql: str = ""
     database: str = "grocery"
-
-
-# ------------------------------------------------------------------
-# Chat
-# ------------------------------------------------------------------
-
-@app.post("/api/chat")
-def chat(request: ChatRequest):
-    """Run the agent and return the full event stream as a single JSON response."""
-    if not request.messages or not any(
-        (m or {}).get("content") for m in request.messages
-    ):
-        return {"error": "No message provided."}
-
-    database = (
-        request.database
-        if request.database in database_names()
-        else "grocery"
-    )
-
-    events = list(stream_chat(request.messages, database=database))
-    return {"events": events}
 
 
 # ------------------------------------------------------------------
@@ -125,14 +175,14 @@ def save_history(request: HistoryRequest):
 def favorite_history(entry_id: str, favorite: bool = True):
     entry = set_favorite(entry_id, favorite)
     if entry is None:
-        return {"error": "Entry not found."}, 404
+        raise HTTPException(status_code=404, detail="Entry not found.")
     return entry
 
 
 @app.delete("/api/history/{entry_id}")
 def remove_history(entry_id: str):
     if not delete_entry(entry_id):
-        return {"error": "Entry not found."}, 404
+        raise HTTPException(status_code=404, detail="Entry not found.")
     return {"deleted": True}
 
 

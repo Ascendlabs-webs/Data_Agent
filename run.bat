@@ -55,4 +55,5 @@ echo [3/4] Starting server...
 start "" http://localhost:8000
 echo [4/4] Server running at http://localhost:8000  (press Ctrl+C to stop)
 echo.
-python -m uvicorn app:app --port 8000
+cd /d "%~dp0"
+python -m uvicorn backend.app:app --port 8000
