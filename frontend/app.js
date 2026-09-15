@@ -1299,6 +1299,246 @@ window.addEventListener("keydown", (e) => {
 });
 
 /* ------------------------------------------------------------------ */
+/* analytics dashboard                                                 */
+/* ------------------------------------------------------------------ */
+
+const ANALYTICS_COLORS = ["#8B5CF6","#06b6d4","#10b981","#f59e0b","#f43f5e","#ec4899","#14b8a6","#3b82f6"];
+
+let analyticsLoaded = false;
+let analyticsCharts = [];
+
+function showView(view) {
+  const chatMain = els.messages;
+  const welcome = els.welcome;
+  const inputWrap = document.querySelector(".input-wrap");
+  const statusBar = document.getElementById("status-bar");
+  const errorBanner = document.getElementById("error-banner");
+  const scrollBtn = els.scrollBottom;
+  const analyticsView = document.getElementById("analytics-view");
+
+  $$(".nav-btn").forEach((b) => b.classList.remove("active"));
+  const activeBtn = $(`.nav-btn[data-view="${view}"]`);
+  if (activeBtn) activeBtn.classList.add("active");
+
+  if (view === "analytics") {
+    if (chatMain) chatMain.style.display = "none";
+    if (welcome) welcome.hidden = true;
+    if (inputWrap) inputWrap.style.display = "none";
+    if (statusBar) statusBar.style.display = "none";
+    if (errorBanner) errorBanner.hidden = true;
+    if (scrollBtn) scrollBtn.hidden = true;
+    if (analyticsView) analyticsView.hidden = false;
+    if (!analyticsLoaded) loadAnalytics();
+  } else {
+    if (chatMain) chatMain.style.display = "block";
+    if (inputWrap) inputWrap.style.display = "block";
+    if (statusBar) statusBar.style.display = "flex";
+    if (analyticsView) analyticsView.hidden = true;
+    if (state.messages.length === 0) showWelcome();
+  }
+}
+
+function loadAnalytics() {
+  const db = state.database;
+  const statsEl = document.getElementById("analytics-stats");
+  const chartsEl = document.getElementById("analytics-charts");
+  const countEl = document.getElementById("analytics-count");
+
+  if (statsEl) statsEl.innerHTML = '<div class="analytics-loading">Loading analytics…</div>';
+  if (chartsEl) chartsEl.innerHTML = '<div class="analytics-loading">Loading charts…</div>';
+
+  Promise.all([
+    api("/api/analytics?database=" + encodeURIComponent(db)),
+    api("/api/analytics/stats?database=" + encodeURIComponent(db)),
+  ])
+    .then(([analyticsData, statsData]) => {
+      analyticsCharts = analyticsData.charts || [];
+      if (countEl) countEl.textContent = analyticsCharts.length + " charts";
+      if (statsEl) renderStats(statsData, statsEl);
+      if (chartsEl) {
+        chartsEl.innerHTML = "";
+        analyticsCharts.forEach((chart) => {
+          chartsEl.append(analyticsCard(chart));
+        });
+      }
+      analyticsLoaded = true;
+    })
+    .catch((err) => {
+      if (chartsEl) chartsEl.innerHTML = '<div class="analytics-loading">Failed to load: ' + esc(err.message) + "</div>";
+    });
+}
+
+function renderStats(stats, container) {
+  container.innerHTML = "";
+  const items = [
+    { label: "Products", value: stats.total_products || 0 },
+    { label: "Orders", value: stats.total_orders || 0 },
+    { label: "Customers", value: stats.total_customers || 0 },
+    { label: "Revenue", value: "₹" + Number(stats.total_revenue || 0).toLocaleString("en-IN") },
+  ];
+  items.forEach((item) => {
+    const card = makeEl("div", "stat-card");
+    card.innerHTML = '<span class="stat-value">' + item.value + '</span><span class="stat-label">' + item.label + '</span>';
+    container.append(card);
+  });
+}
+
+function analyticsCard(chart) {
+  const card = makeEl("div", "chart-card");
+  const head = makeEl("div", "chart-card-head");
+  const title = makeEl("h3", null, chart.title);
+  const actions = makeEl("div", "chart-card-actions");
+
+  const pinBtn = button("chart-action-btn", "📌", "Pin to dashboard", () => {
+    const added = togglePin(
+      { data: chart.data, layout: {} },
+      chart.title
+    );
+    toast(added ? "Pinned to dashboard" : "Removed from dashboard");
+    loadPinnedAnalytics();
+  });
+
+  const pngBtn = button("chart-action-btn", "PNG", "Download as PNG", () => {
+    const plotEl = $(".chart-plot", card);
+    if (plotEl && window.Plotly) {
+      Plotly.downloadImage(plotEl, {
+        format: "png",
+        width: 1200,
+        height: 600,
+        filename: chart.title.replace(/[^a-z0-9]/gi, "_").toLowerCase(),
+      });
+    }
+  });
+
+  const csvBtn = button("chart-action-btn", "CSV", "Download as CSV", () => {
+    exportCsv(chart.data, chart.title.replace(/[^a-z0-9]/gi, "_").toLowerCase());
+  });
+
+  actions.append(pinBtn, pngBtn, csvBtn);
+  head.append(title, actions);
+
+  const plotDiv = makeEl("div", "chart-plot");
+  card.append(head, plotDiv);
+
+  renderAnalyticsPlot(plotDiv, chart);
+
+  if ((chart.type === "bar" || chart.type === "pie") && chart.data.length > 1) {
+    const legend = makeEl("div", "chart-color-key");
+    chart.data.forEach((row, i) => {
+      const item = makeEl("span");
+      const dot = makeEl("i");
+      dot.style.background = ANALYTICS_COLORS[i % ANALYTICS_COLORS.length];
+      item.append(dot, document.createTextNode(String(row[chart.x_field] || "")));
+      legend.append(item);
+    });
+    card.append(legend);
+  }
+
+  return card;
+}
+
+function renderAnalyticsPlot(plotDiv, chart) {
+  if (!window.Plotly) return;
+  const xVals = chart.data.map((r) => r[chart.x_field]);
+  const yVals = chart.data.map((r) => r[chart.y_field]);
+  const colors = chart.data.map((_, i) => ANALYTICS_COLORS[i % ANALYTICS_COLORS.length]);
+
+  const layout = {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor: "rgba(0,0,0,0)",
+    font: { color: "#A7A4B8", family: "Inter, sans-serif", size: 12 },
+    margin: { l: 56, r: 20, t: 30, b: 60 },
+    xaxis: {
+      gridcolor: "rgba(255,255,255,0.05)",
+      tickfont: { color: "#6F6C80", size: 11 },
+      tickangle: chart.data.length > 6 ? -45 : 0,
+    },
+    yaxis: {
+      gridcolor: "rgba(255,255,255,0.05)",
+      tickfont: { color: "#6F6C80" },
+    },
+    showlegend: false,
+  };
+
+  let trace;
+  if (chart.type === "line") {
+    trace = {
+      x: xVals,
+      y: yVals,
+      type: "scatter",
+      mode: "lines+markers",
+      line: { color: "#8B5CF6", width: 3, shape: "spline" },
+      marker: { color: "#8B5CF6", size: 7, line: { color: "#fff", width: 2 } },
+      fill: "tozeroy",
+      fillcolor: "rgba(139,92,246,0.08)",
+    };
+  } else if (chart.type === "pie") {
+    trace = {
+      labels: xVals,
+      values: yVals,
+      type: "pie",
+      marker: { colors: colors },
+      textinfo: "label+percent",
+      textfont: { color: "#e5e7eb", size: 12 },
+      hole: 0.4,
+    };
+    delete layout.xaxis;
+    delete layout.yaxis;
+  } else {
+    trace = {
+      x: xVals,
+      y: yVals,
+      type: "bar",
+      marker: { color: colors, line: { color: "rgba(255,255,255,0.1)", width: 1 } },
+    };
+  }
+
+  Plotly.newPlot(plotDiv, [trace], layout, {
+    responsive: true,
+    displayModeBar: false,
+  });
+}
+
+function exportCsv(data, name) {
+  if (!data || !data.length) return;
+  const keys = Object.keys(data[0]);
+  const lines = [
+    keys.join(","),
+    ...data.map((row) => keys.map((k) => JSON.stringify(row[k] ?? "")).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = (name || "analytics") + ".csv";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+function loadPinnedAnalytics() {
+  const pinned = getPinned();
+  const section = document.getElementById("analytics-pinned-section");
+  const container = document.getElementById("analytics-pinned");
+  if (!section || !container) return;
+  if (pinned.length === 0) {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+  container.innerHTML = "";
+  pinned.forEach((p) => {
+    const chart = { title: p.title, type: "bar", x_field: "x", y_field: "y", data: [] };
+    if (p.figure && p.figure.data && p.figure.data[0]) {
+      chart.data = p.figure.data[0].x
+        ? p.figure.data[0].x.map((x, i) => ({ x, y: p.figure.data[0].y[i] }))
+        : [];
+      chart.x_field = "x";
+      chart.y_field = "y";
+    }
+    container.append(analyticsCard(chart));
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* init & events                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -1381,6 +1621,44 @@ function init() {
       newChat();
     }
   });
+
+  // Analytics nav buttons
+  $$(".nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.view;
+      if (view) showView(view);
+    });
+  });
+
+  // Analytics "Ask a custom question" button
+  const analyticsAskBtn = document.getElementById("analytics-ask-btn");
+  if (analyticsAskBtn) {
+    analyticsAskBtn.addEventListener("click", () => showView("chat"));
+  }
+
+  // Initialize analytics particles
+  initAnalyticsParticles();
+}
+
+function initAnalyticsParticles() {
+  const container = document.getElementById("analytics-particles");
+  if (!container) return;
+  const count = 18;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("div");
+    p.className = "analytics-particle";
+    const size = 3 + Math.random() * 6;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 20;
+    const duration = 12 + Math.random() * 18;
+    const opacity = 0.15 + Math.random() * 0.35;
+    p.style.cssText =
+      "width:" + size + "px;height:" + size + "px;" +
+      "left:" + left + "%;bottom:-" + size + "px;" +
+      "animation-delay:" + delay + "s;animation-duration:" + duration + "s;" +
+      "opacity:" + opacity + ";";
+    container.append(p);
+  }
 }
 
 init();

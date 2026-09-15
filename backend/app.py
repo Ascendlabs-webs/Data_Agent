@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from backend.agent import stream_chat
+from backend.analytics import get_analytics, get_stats
 from backend.config import DATABASES, database_names
 from backend.database_tools import execute_query, get_schema
 from backend.history_store import (
@@ -184,6 +185,24 @@ def remove_history(entry_id: str):
     if not delete_entry(entry_id):
         raise HTTPException(status_code=404, detail="Entry not found.")
     return {"deleted": True}
+
+
+# ------------------------------------------------------------------
+# Analytics dashboard
+# ------------------------------------------------------------------
+
+@app.get("/api/analytics")
+def analytics(database: str = "grocery"):
+    """Return pre-built chart data for the analytics dashboard."""
+    db = _resolve_db(database)
+    return get_analytics(db)
+
+
+@app.get("/api/analytics/stats")
+def analytics_stats(database: str = "grocery"):
+    """Return summary stats for the analytics dashboard header."""
+    db = _resolve_db(database)
+    return get_stats(db)
 
 
 # ------------------------------------------------------------------

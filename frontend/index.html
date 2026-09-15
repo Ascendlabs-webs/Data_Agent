@@ -22,6 +22,16 @@
           <span>Data Agent</span>
           <span class="brand-badge">Enterprise</span>
         </div>
+        <div class="sidebar-nav">
+          <button class="nav-btn active" data-view="chat" title="Chat with the agent">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Chat
+          </button>
+          <button class="nav-btn" data-view="analytics" title="View analytics dashboard">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Analytics
+          </button>
+        </div>
         <label class="db-label" for="db-select">Database</label>
         <select id="db-select" title="Select database"></select>
         <button id="new-chat-btn" class="btn primary-btn" title="Start a new chat and save the current one">
@@ -102,6 +112,26 @@
              </button>
            </div>
         </div>
+      </section>
+      <section id="analytics-view" class="analytics-view" hidden>
+        <div class="analytics-particles" id="analytics-particles"></div>
+        <header class="analytics-header">
+          <div class="analytics-header-text">
+            <span class="analytics-eyebrow">ANALYTICS LIBRARY</span>
+            <h1>Data overview</h1>
+            <p id="analytics-subtitle">Live visualizations generated from your database. Pin the views you use most.</p>
+          </div>
+          <button id="analytics-ask-btn" class="btn analytics-ask-btn" title="Ask a custom question">Ask a custom question</button>
+        </header>
+        <div id="analytics-stats" class="analytics-stats"></div>
+        <section id="analytics-pinned-section" class="dashboard-section" hidden>
+          <h2>Saved views</h2>
+          <div id="analytics-pinned" class="analytics-grid"></div>
+        </section>
+        <section class="dashboard-section">
+          <h2>Recommended analytics <span id="analytics-count"></span></h2>
+          <div id="analytics-charts" class="analytics-grid"></div>
+        </section>
       </section>
       <div class="input-wrap">
         <div id="input-bar">

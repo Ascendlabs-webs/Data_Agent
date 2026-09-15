@@ -271,6 +271,52 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .alt-row{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.2);border-radius:8px;padding:6px 10px}
 .alt-sql{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--accent-3);white-space:pre-wrap;word-break:break-all}
 
+/* ---------------- sidebar nav ---------------- */
+.sidebar-nav{display:flex;gap:6px;margin:12px 0}
+.nav-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 10px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,.03);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .2s var(--ease)}
+.nav-btn:hover{background:rgba(139,92,246,.08);color:var(--text);border-color:rgba(139,92,246,.3)}
+.nav-btn.active{background:rgba(139,92,246,.12);color:#c4b5fd;border-color:rgba(139,92,246,.45);box-shadow:0 0 14px rgba(139,92,246,.18)}
+.nav-btn svg{width:15px;height:15px;flex-shrink:0}
+
+/* ---------------- analytics view ---------------- */
+.analytics-view{position:relative;flex:1;overflow-y:auto;padding:0 32px 40px;display:flex;flex-direction:column}
+.analytics-view[hidden]{display:none!important}
+.analytics-particles{position:fixed;top:0;left:260px;right:0;bottom:0;pointer-events:none;z-index:0;overflow:hidden}
+.analytics-particle{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(139,92,246,.5),rgba(139,92,246,0));animation:particleDrift linear infinite;opacity:0}
+@keyframes particleDrift{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}10%{opacity:.6}90%{opacity:.6}100%{transform:translateY(-100vh) translateX(40px) scale(.4);opacity:0}}
+
+.analytics-header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:32px 0 24px;border-bottom:1px solid var(--border);margin-bottom:24px;position:relative;z-index:1}
+.analytics-eyebrow{font-size:10.5px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:var(--accent-3);display:block;margin-bottom:6px}
+.analytics-header h1{font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.5px;margin:0 0 6px;background:linear-gradient(135deg,#fff,#c4b5fd 60%,#8B5CF6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.analytics-header p{color:var(--muted);margin:0;font-size:14px}
+.analytics-ask-btn{white-space:nowrap;background:rgba(139,92,246,.1)!important;border:1px solid rgba(139,92,246,.4)!important;color:#c4b5fd!important;padding:10px 20px!important;border-radius:12px!important;font-size:13px!important;font-weight:600!important;transition:all .2s var(--ease)!important}
+.analytics-ask-btn:hover{background:rgba(139,92,246,.2)!important;box-shadow:0 0 20px rgba(139,92,246,.25)!important;transform:translateY(-1px)}
+
+.analytics-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px;position:relative;z-index:1}
+.stat-card{background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:4px;transition:border-color .2s,box-shadow .2s}
+.stat-card:hover{border-color:rgba(139,92,246,.35);box-shadow:0 0 18px rgba(139,92,246,.12)}
+.stat-value{font-size:24px;font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.stat-label{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+
+.dashboard-section{margin-top:8px;position:relative;z-index:1}
+.dashboard-section h2{font-size:17px;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.dashboard-section h2 span{color:var(--muted);font-size:13px;font-weight:400}
+
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px}
+.analytics-grid .chart-card{margin:0;background:var(--glass);backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:16px;padding:20px;transition:border-color .25s,box-shadow .25s,transform .25s}
+.analytics-grid .chart-card:hover{border-color:rgba(139,92,246,.35);box-shadow:0 8px 32px rgba(139,92,246,.12);transform:translateY(-2px)}
+
+.chart-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
+.chart-card-head h3{font-size:14.5px;font-weight:700;color:var(--text);margin:0;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+.chart-card-actions{display:flex;gap:5px;flex-shrink:0}
+.chart-action-btn{background:rgba(139,92,246,.08)!important;border:1px solid rgba(139,92,246,.25)!important;color:#c4b5fd!important;padding:5px 10px!important;border-radius:8px!important;font-size:11px!important;font-weight:600!important;cursor:pointer;transition:all .15s var(--ease);font-family:var(--mono)!important}
+.chart-action-btn:hover{background:rgba(139,92,246,.18)!important;border-color:rgba(139,92,246,.45)!important;box-shadow:0 0 10px rgba(139,92,246,.2)}
+.chart-plot{height:276px;min-width:0}
+.chart-color-key{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 12px;margin-top:14px;max-height:110px;overflow-y:auto}
+.chart-color-key span{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chart-color-key i{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.analytics-loading{color:var(--muted);text-align:center;padding:40px 20px;font-size:14px}
+
 /* ---------------- responsive ---------------- */
 @media(max-width:880px){
   #sidebar{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%);transition:transform .22s var(--ease)}
@@ -280,6 +326,11 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
   .welcome-card{padding:30px 22px}
   .msg-body{max-width:94%}
   .input-hint{display:none}
+  .analytics-view{padding:0 16px 32px}
+  .analytics-stats{grid-template-columns:repeat(2,1fr)}
+  .analytics-grid{grid-template-columns:1fr}
+  .analytics-header{flex-direction:column;gap:14px}
+  .analytics-particles{left:0}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
