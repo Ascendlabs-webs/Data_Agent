@@ -125,9 +125,14 @@ def build_messages(messages, database):
     database_list = "\n".join(
         f"- {name}: {info['description']}" for name, info in DATABASES.items()
     )
-    system = SYSTEM_INSTRUCTIONS.format(
-        databases=database_list, selected=database,
-        schema_snapshot=_compact_schema(database),
+    # NOTE: literal .replace() instead of str.format() — the system prompt
+    # contains a JSON example with {braces} (e.g. "confidence_score") that
+    # .format() misinterprets as placeholders, crashing every chat request
+    # with KeyError: '"confidence_score"'.
+    system = (
+        SYSTEM_INSTRUCTIONS.replace("{databases}", database_list)
+        .replace("{schema_snapshot}", _compact_schema(database))
+        .replace("{selected}", database)
     )
     chat = [{"role": "system", "content": system}]
     for message in messages[-10:]:
