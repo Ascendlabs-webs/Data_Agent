@@ -26,8 +26,8 @@ LLM_API_KEY = _GROQ_KEY or _OPENROUTER_KEY
 
 if _GROQ_KEY:
     _DEFAULT_BASE = "https://api.groq.com/openai/v1"
-    _DEFAULT_MODEL = "llama-3.3-70b-versatile"
-    _DEFAULT_FALLBACKS = "llama-3.1-8b-instant"
+    _DEFAULT_MODEL = "openai/gpt-oss-120b"
+    _DEFAULT_FALLBACKS = "openai/gpt-oss-20b,qwen/qwen3.8-27b"
     LLM_BASE_URL = os.getenv("GROQ_BASE_URL", _DEFAULT_BASE)
     LLM_MODEL = os.getenv("GROQ_MODEL", _DEFAULT_MODEL)
     _fallback_raw = os.getenv(
