@@ -1324,6 +1324,7 @@ function showView(view) {
   const errorBanner = document.getElementById("error-banner");
   const scrollBtn = els.scrollBottom;
   const analyticsView = document.getElementById("analytics-view");
+  const chatParticles = document.getElementById("chat-particles");
 
   $$(".nav-btn").forEach((b) => b.classList.remove("active"));
   const activeBtn = $(`.nav-btn[data-view="${view}"]`);
@@ -1337,12 +1338,14 @@ function showView(view) {
     if (errorBanner) errorBanner.hidden = true;
     if (scrollBtn) scrollBtn.hidden = true;
     if (analyticsView) analyticsView.hidden = false;
+    if (chatParticles) chatParticles.hidden = true;
     if (!analyticsLoaded) loadAnalytics();
   } else {
     if (chatMain) chatMain.style.display = "block";
     if (inputWrap) inputWrap.style.display = "block";
     if (statusBar) statusBar.style.display = "flex";
     if (analyticsView) analyticsView.hidden = true;
+    if (chatParticles) chatParticles.hidden = false;
     if (state.messages.length === 0) showWelcome();
   }
 }
@@ -1649,6 +1652,29 @@ function init() {
   initAnalyticsParticles();
   // Initialize home particles
   initHomeParticles();
+  // Initialize chat particles
+  initChatParticles();
+}
+
+function initChatParticles() {
+  const container = document.getElementById("chat-particles");
+  if (!container) return;
+  const count = 22;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("div");
+    p.className = "chat-particle" + (i % 4 === 3 ? " alt" : "");
+    const size = 2 + Math.random() * 6;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 20;
+    const duration = 14 + Math.random() * 20;
+    const opacity = 0.12 + Math.random() * 0.3;
+    p.style.cssText =
+      "width:" + size + "px;height:" + size + "px;" +
+      "left:" + left + "%;bottom:-" + size + "px;" +
+      "animation-delay:" + delay + "s;animation-duration:" + duration + "s;" +
+      "opacity:" + opacity + ";";
+    container.append(p);
+  }
 }
 
 function initHomeParticles() {
