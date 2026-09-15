@@ -76,38 +76,25 @@ CURRENTLY SELECTED DATABASE: {selected}
 SCHEMA SNAPSHOT ({selected}):
 {schema_snapshot}
 
-IMPORTANT: Your final assistant message must include the following JSON
-in a fenced code block called `decision` so the frontend can render the
-decision log, confidence badge and alternative queries.  The block MUST
-be the very last part of your response (after all markdown text).
+IMPORTANT: Your final assistant message must end with a `decision` code
+block containing ONLY valid JSON (no comments, no trailing commas, no
+markdown inside strings). This block is parsed by the frontend.
+
+Format — keep it compact, one line per array element:
 
 ```decision
-{
-  "confidence_score": 8.5,
-  "decision_log": [
-    "Step 1: Translated question to SQL with SELECT + JOIN",
-    "Step 2: Ran execute_query — returned 42 rows",
-    "Step 3: Called explain_data — skew=0.3, kurtosis=-0.1, no outliers",
-    "Step 4: Called assess_query — confidence 8.5, no issues"
-  ],
-  "alternatives": [
-    "SELECT * FROM products WHERE category='Beverages' LIMIT 50",
-    "SELECT category, SUM(quantity) FROM products GROUP BY category"
-  ],
-  "performance": {
-    "execution_time_ms": 42,
-    "rows_per_second": 4200
-  },
-  "visualization": "bar"
-}
+{"confidence_score":8.5,"decision_log":["Step 1: translated to SQL","Step 2: ran query, 42 rows"],"alternatives":["SELECT ... LIMIT 50"],"performance":{"execution_time_ms":42,"rows_per_second":4200},"visualization":"bar"}
 ```
 
 Fields:
-- confidence_score (float 0-10): from assess_query if called, else estimate
-- decision_log (list of strings): brief steps you took
-- alternatives (list of strings): alternative queries the user might try
-- performance (object, optional): execution_time_ms and rows_per_second from execute_query
-- visualization (string, optional): recommended chart type from assess_query
+- confidence_score: float 0-10
+- decision_log: array of short step strings
+- alternatives: array of alternative SQL strings (may be empty)
+- performance: object with execution_time_ms, rows_per_second (may be omitted)
+- visualization: "bar"|"line"|"pie"|"scatter" (may be omitted)
+
+The code fence must start with ```decision and end with ```.
+Do NOT put anything after the closing fence.
 """
 
 

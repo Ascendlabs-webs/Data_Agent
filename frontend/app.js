@@ -965,11 +965,20 @@ function sendMessage(text) {
       const decisionMatch = assistant.content.match(/```decision\s*\n([\s\S]*?)\n\s*```/);
       if (decisionMatch) {
         try {
-          const decision = JSON.parse(decisionMatch[1]);
+          let raw = decisionMatch[1].trim();
+          // Fix common JSON issues from LLM output
+          raw = raw.replace(/\\n/g, "\n");          // unescape literal \n
+          raw = raw.replace(/[\x00-\x1f]+/g, " ");  // strip control chars
+          raw = raw.replace(/,\s*}/g, "}");          // trailing commas
+          raw = raw.replace(/,\s*]/g, "]");          // trailing commas in arrays
+          const decision = JSON.parse(raw);
           assistant.decision = decision;
           // Remove the decision block from displayed text
           assistant.content = assistant.content.replace(/```decision\s*\n[\s\S]*?\n\s*```\s*$/, "").trim();
-        } catch (e) {}
+        } catch (e) {
+          // If JSON is totally broken, just strip the decision block silently
+          assistant.content = assistant.content.replace(/```decision\s*\n[\s\S]*?\n\s*```\s*$/, "").trim();
+        }
       }
       aEl.contentEl.innerHTML = md(assistant.content);
       if (assistant.decision) {
