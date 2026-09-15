@@ -19,7 +19,7 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_BASE_URL = os.getenv(
     "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
 )
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "google/gemini-2.0-flash-001")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
 
 # Comma-separated fallback models tried when the primary model is
 # unavailable (429 rate limit / 503 high demand on the provider side).
@@ -27,7 +27,7 @@ OPENROUTER_FALLBACK_MODELS = [
     m.strip()
     for m in os.getenv(
         "OPENROUTER_FALLBACK_MODELS",
-        "nvidia/nemotron-3.5-lightning,dots-studio/dots-3-note-preview:free",
+        "dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free",
     ).split(",")
     if m.strip()
 ]
