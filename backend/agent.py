@@ -270,12 +270,17 @@ def stream_chat(messages, database="grocery"):
                     },
                 }
                 for call in calls.values()
+                if call.get("id") and call.get("name")
             ]
+            # If streaming produced incomplete tool calls (no id), skip this turn.
+            if not tool_calls:
+                continue
             assistant_message["tool_calls"] = tool_calls
             chat.append(assistant_message)
 
             # Execute the requested tools
-            for call_id, call in calls.items():
+            for call in calls.values():
+                call_id = call.get("id")
                 name = call["name"]
                 args = json.loads(call.get("arguments") or "{}")
 
@@ -319,9 +324,13 @@ def stream_chat(messages, database="grocery"):
                 yield event("tool_result", result_event)
 
                 # Feed the function response back to the model
+                # tool_call_id must be the string id returned by the model
+                # (e.g. "call_abc123"), NOT the numeric stream index.
+                if not call_id:
+                    continue
                 chat.append({
                     "role": "tool",
-                    "tool_call_id": call_id,
+                    "tool_call_id": str(call_id),
                     "content": json.dumps(result),
                 })
 
@@ -337,8 +346,8 @@ def stream_chat(messages, database="grocery"):
                         })
                         return
 
-            # Reset the accumulated text for the next model turn
-            total_text = ""
+            # NOTE: do NOT reset total_text here — it must accumulate
+            # across tool turns so the final "done" contains the full answer.
 
         except Exception as error:  # noqa: BLE001 - graceful fallback
             yield event("error", {
