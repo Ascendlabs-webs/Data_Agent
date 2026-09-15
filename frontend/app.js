@@ -1638,6 +1638,29 @@ function init() {
 
   // Initialize analytics particles
   initAnalyticsParticles();
+  // Initialize home particles
+  initHomeParticles();
+}
+
+function initHomeParticles() {
+  const container = document.getElementById("home-particles");
+  if (!container) return;
+  const count = 14;
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement("div");
+    p.className = "home-particle";
+    const size = 2 + Math.random() * 5;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 16;
+    const duration = 14 + Math.random() * 20;
+    const opacity = 0.12 + Math.random() * 0.3;
+    p.style.cssText =
+      "width:" + size + "px;height:" + size + "px;" +
+      "left:" + left + "%;bottom:-" + size + "px;" +
+      "animation-delay:" + delay + "s;animation-duration:" + duration + "s;" +
+      "opacity:" + opacity + ";";
+    container.append(p);
+  }
 }
 
 function initAnalyticsParticles() {
