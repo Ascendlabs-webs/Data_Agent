@@ -254,6 +254,23 @@ button:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px sol
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .table-bar{display:flex;gap:8px;justify-content:center;padding:10px 0 2px;flex-wrap:wrap}
 
+/* ---------------- decision card ---------------- */
+.decision-card{background:rgba(139,92,246,.06);border-color:rgba(139,92,246,.25)}
+.decision-body{display:flex;flex-direction:column;gap:12px;padding:0 14px 14px}
+.confidence-badge{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;letter-spacing:.3px}
+.confidence-badge.high{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.confidence-badge.medium{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.confidence-badge.low{background:rgba(248,113,113,.15);color:#fca5a5;border:1px solid rgba(248,113,113,.3)}
+.decision-log{display:flex;flex-direction:column;gap:3px}
+.decision-log-title,.alt-title{font-size:11px;font-weight:700;color:var(--muted-2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
+.decision-step{font-size:13px;color:var(--muted);padding:3px 0 3px 16px;position:relative}
+.decision-step::before{content:"";position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.perf-card,.viz-rec{font-size:12.5px;color:var(--muted)}
+.perf-label{font-weight:700;color:var(--muted-2);text-transform:uppercase;letter-spacing:.5px;font-size:10.5px}
+.alt-queries{display:flex;flex-direction:column;gap:6px}
+.alt-row{display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.2);border-radius:8px;padding:6px 10px}
+.alt-sql{flex:1;font-family:var(--mono);font-size:11.5px;color:var(--accent-3);white-space:pre-wrap;word-break:break-all}
+
 /* ---------------- responsive ---------------- */
 @media(max-width:880px){
   #sidebar{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%);transition:transform .22s var(--ease)}

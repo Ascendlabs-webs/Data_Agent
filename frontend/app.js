@@ -59,6 +59,8 @@ const TOOL_LABELS = {
   generate_chart: "Generate chart",
   generate_flowchart: "Generate diagram",
   explain_data: "Explain analysis",
+  explain_plan: "Explain plan",
+  assess_query: "Assess query",
 };
 
 /* ------------------------------------------------------------------ */
@@ -486,6 +488,9 @@ function renderMessage(message) {
     artifacts.append(card);
     if (artifact.kind === "chart") plotChart(card, artifact);
   });
+  if (message.decision) {
+    artifacts.append(decisionCard(message.decision));
+  }
 
   wrap.append(body);
   els.messages.append(wrap);
@@ -520,6 +525,7 @@ function renderArtifact(artifact) {
   if (artifact.kind === "diagram") return diagramCard(artifact);
   if (artifact.kind === "sql") return sqlCard(artifact);
   if (artifact.kind === "table") return tableCard(artifact);
+  if (artifact.kind === "decision") return decisionCard(artifact.decision || {});
   return makeEl("div", "side-empty", "Unknown artifact");
 }
 
@@ -589,6 +595,70 @@ function diagramCard(artifact) {
   const holder = makeEl("div", "diagram-holder");
   card.append(head, holder);
   renderMermaid(holder, artifact.mermaid, card);
+  return card;
+}
+
+function decisionCard(d) {
+  const card = makeEl("div", "card decision-card");
+  const head = makeEl("div", "card-head");
+  head.append(makeEl("span", null, "Decision Log"));
+  card.append(head);
+  const body = makeEl("div", "decision-body");
+  // Confidence badge
+  const conf = d.confidence_score;
+  if (conf !== undefined) {
+    const badge = makeEl("span", "confidence-badge");
+    badge.textContent = "Confidence: " + conf + "/10";
+    if (conf >= 7) badge.classList.add("high");
+    else if (conf >= 4) badge.classList.add("medium");
+    else badge.classList.add("low");
+    body.append(badge);
+  }
+  // Decision log
+  if (Array.isArray(d.decision_log) && d.decision_log.length) {
+    const log = makeEl("div", "decision-log");
+    const logTitle = makeEl("div", "decision-log-title", "Steps taken:");
+    log.append(logTitle);
+    d.decision_log.forEach((step, i) => {
+      const li = makeEl("div", "decision-step");
+      li.textContent = step;
+      log.append(li);
+    });
+    body.append(log);
+  }
+  // Performance
+  if (d.performance && d.performance.execution_time_ms) {
+    const perf = makeEl("div", "perf-card");
+    perf.innerHTML = '<span class="perf-label">Query time:</span> '
+      + d.performance.execution_time_ms + 'ms'
+      + (d.performance.rows_per_second
+        ? ' (' + d.performance.rows_per_second.toLocaleString() + ' rows/s)' : '');
+    body.append(perf);
+  }
+  // Visualization recommendation
+  if (d.visualization) {
+    const viz = makeEl("div", "viz-rec");
+    viz.innerHTML = '<span class="perf-label">Suggested viz:</span> ' + esc(d.visualization);
+    body.append(viz);
+  }
+  // Alternatives
+  if (Array.isArray(d.alternatives) && d.alternatives.length) {
+    const alt = makeEl("div", "alt-queries");
+    const altTitle = makeEl("div", "alt-title", "Alternative queries:");
+    alt.append(altTitle);
+    d.alternatives.forEach((sql) => {
+      const row = makeEl("div", "alt-row");
+      const code = makeEl("code", "alt-sql", sql);
+      row.append(code);
+      const copyBtn = button("mini-btn", "📋", "Copy query", () => {
+        navigator.clipboard.writeText(sql).then(() => toast("Copied to clipboard"));
+      });
+      row.append(copyBtn);
+      alt.append(row);
+    });
+    body.append(alt);
+  }
+  card.append(body);
   return card;
 }
 
@@ -793,7 +863,7 @@ function sendMessage(text) {
 
   setStatus("ok", "Agent is working…");
   const thinkStart = Date.now();
-  const STAGES = { get_schema: "Reading schema…", execute_query: "Running SQL…", generate_chart: "Drawing chart…", generate_flowchart: "Drawing diagram…", explain_data: "Crunching stats…" };
+  const STAGES = { get_schema: "Reading schema…", execute_query: "Running SQL…", generate_chart: "Drawing chart…", generate_flowchart: "Drawing diagram…", explain_data: "Crunching stats…", explain_plan: "Explaining plan…", assess_query: "Assessing query…" };
   const thinkTimer = setInterval(() => {
     const secs = Math.round((Date.now() - thinkStart) / 1000);
     setStatus("ok", (state.stage || "Agent is working…") + " (" + secs + "s)");
@@ -891,7 +961,20 @@ function sendMessage(text) {
       }
     } else if (ev.type === "done") {
       if (ev.text) assistant.content = ev.text;
+      // Parse ```decision ... ``` block from the final message
+      const decisionMatch = assistant.content.match(/```decision\s*\n([\s\S]*?)\n\s*```/);
+      if (decisionMatch) {
+        try {
+          const decision = JSON.parse(decisionMatch[1]);
+          assistant.decision = decision;
+          // Remove the decision block from displayed text
+          assistant.content = assistant.content.replace(/```decision\s*\n[\s\S]*?\n\s*```\s*$/, "").trim();
+        } catch (e) {}
+      }
       aEl.contentEl.innerHTML = md(assistant.content);
+      if (assistant.decision) {
+        aEl.artifactsEl.append(decisionCard(assistant.decision));
+      }
       cursor.remove();
       setStatus("ok", "Done");
     } else if (ev.type === "error") {

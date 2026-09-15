@@ -1,15 +1,18 @@
 """
-Tool registry: the five agent tools exposed to the LLM.
+Tool registry: the agent tools exposed to the LLM.
 
 Each tool function is documented with type hints and a Google-style
-docstring so the Gemini SDK can build function declarations from them.
+docstring. Schemas below are explicit JSON declarations for
+deterministic, provider-independent behavior.
 """
 import json
 
 from backend.database_tools import execute_query as _execute_query
+from backend.database_tools import explain_plan as _explain_plan
 from backend.database_tools import generate_chart as _generate_chart
 from backend.database_tools import get_schema as _get_schema
 from backend.diagram_tools import generate_diagram
+from backend.explanation_tools import assess_query as _assess_query
 from backend.explanation_tools import explain_data as _explain_data
 
 
@@ -66,14 +69,16 @@ def generate_chart(
     in the chat for the user to see.
 
     Call this after execute_query whenever the user asks to see the
-    data as a bar, line, pie or scatter chart.
+    data as a bar, line, pie, scatter, histogram, box or heatmap chart.
 
     Args:
         data_json: the query results as a JSON array of objects
                    (pass the 'data' array from execute_query).
         chart_type: 'bar' for categorical comparisons, 'line' for
                     trends over time, 'pie' for proportional
-                    distribution, 'scatter' for correlation.
+                    distribution, 'scatter' for correlation,
+                    'histogram' for value distributions, 'box' for
+                    spread/outliers, 'heatmap' for column correlation.
         x_column: column name used for the X axis / categories.
         y_column: numeric column used for the Y axis.
         title: chart title.
@@ -125,6 +130,32 @@ def explain_data(data_json: str):
     """
     data = json.loads(data_json)
     return _explain_data(data)
+
+
+def explain_plan(sql: str, database: str = "grocery"):
+    """
+    Return the query execution plan (EXPLAIN QUERY PLAN on SQLite,
+    EXPLAIN on Postgres). Call after execute_query to diagnose slow
+    queries or understand index usage.
+
+    Args:
+        sql: the SQL SELECT statement to explain.
+        database: database name (default 'grocery').
+    """
+    return _explain_plan(sql, database)
+
+
+def assess_query(sql: str, database: str = "grocery"):
+    """
+    Audit a SQL query: validate against schema, compute a confidence
+    score (0-10), identify issues, recommend a visualization type and
+    suggest alternative queries. Call after generate a complex SQL.
+
+    Args:
+        sql: the SQL SELECT statement to audit.
+        database: database name (default 'grocery').
+    """
+    return _assess_query(sql, database)
 
 
 # ------------------------------------------------------------------
@@ -203,7 +234,9 @@ def build_tool_declarations():
                         "description": (
                             "bar (categorical comparisons), line (trends "
                             "over time), pie (proportional distribution), "
-                            "scatter (correlation)."
+                            "scatter (correlation), histogram (value "
+                            "distributions), box (spread/outliers), "
+                            "heatmap (column correlation matrix)."
                         ),
                     },
                     "x_column": {
@@ -256,9 +289,10 @@ def build_tool_declarations():
         {
             "name": "explain_data",
             "description": (
-                "Compute a quick statistical summary (counts, min/max/avg, "
-                "most common categories) of query results. Call to back up "
-                "your insights with numbers."
+                "Compute a statistical summary (counts, min/max/avg/sum, "
+                "skew, kurtosis, IQR outliers, Pearson correlation matrix, "
+                "top categorical values) of query results. Call to back up "
+                "your insights with quantitative evidence."
             ),
             "parameters": {
                 "type": "object",
@@ -271,6 +305,50 @@ def build_tool_declarations():
                     }
                 },
                 "required": ["data_json"],
+            },
+        },
+        {
+            "name": "explain_plan",
+            "description": (
+                "Return the query execution plan (EXPLAIN QUERY PLAN on "
+                "SQLite, EXPLAIN on Postgres). Call after execute_query to "
+                "diagnose slow queries or understand index usage."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sql": {
+                        "type": "string",
+                        "description": "The SQL SELECT statement to explain.",
+                    },
+                    "database": {
+                        "type": "string",
+                        "description": "Database name (default 'grocery').",
+                    },
+                },
+                "required": ["sql"],
+            },
+        },
+        {
+            "name": "assess_query",
+            "description": (
+                "Audit a SQL query: validate against schema, compute a "
+                "confidence score (0-10), identify issues, recommend a "
+                "visualization type and suggest alternative queries."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "sql": {
+                        "type": "string",
+                        "description": "The SQL SELECT statement to audit.",
+                    },
+                    "database": {
+                        "type": "string",
+                        "description": "Database name (default 'grocery').",
+                    },
+                },
+                "required": ["sql"],
             },
         },
     ]
@@ -290,6 +368,8 @@ TOOLS = {
     "generate_chart": generate_chart,
     "generate_flowchart": generate_flowchart,
     "explain_data": explain_data,
+    "explain_plan": explain_plan,
+    "assess_query": assess_query,
 }
 
 
@@ -304,7 +384,7 @@ def run_tool(name, args, database="grocery"):
     if function is None:
         return {"success": False, "error": f"Unknown tool '{name}'."}
 
-    if name in ("get_schema", "execute_query") and "database" not in args:
+    if name in ("get_schema", "execute_query", "explain_plan", "assess_query") and "database" not in args:
         args["database"] = database
 
     try:

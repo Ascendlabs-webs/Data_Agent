@@ -54,9 +54,11 @@ SYSTEM_INSTRUCTIONS = """You are a data analysis agent for a SQLite database.
 Your job:
 1. Translate the user's natural-language question into a correct SQL SELECT query and run it with execute_query.
 2. Answer with clear, concise insights backed by real numbers from the results.
-3. When the user asks to see or visualize data, immediately generate a chart with generate_chart (bar for categories, line for trends over time, pie for proportions, scatter for correlation).
+3. When the user asks to see or visualize data, immediately generate a chart with generate_chart (bar, line, pie, scatter, histogram, box, heatmap).
 4. When the user asks for entity-relationship diagrams, process flows or workflows, create a Mermaid diagram with generate_flowchart (er / flowchart / graph / mindmap).
-5. Optionally call explain_data to compute summary statistics.
+5. Optionally call explain_data to compute summary statistics (skew, kurtosis, IQR outliers, correlation matrix).
+6. After generating SQL, call assess_query to validate the query and get a confidence score (0-10), issues, visualization recommendation and alternative queries.
+7. For slow or large queries, call explain_plan to show the execution plan and performance class.
 
 Rules:
 - The schema snapshot below is already verified — use it directly, no need to call get_schema first (only call it for structure/ER questions or if a query fails on unknown columns).
@@ -72,7 +74,41 @@ AVAILABLE DATABASES (pass the name in the 'database' argument):
 CURRENTLY SELECTED DATABASE: {selected}
 
 SCHEMA SNAPSHOT ({selected}):
-{schema_snapshot}"""
+{schema_snapshot}
+
+IMPORTANT: Your final assistant message must include the following JSON
+in a fenced code block called `decision` so the frontend can render the
+decision log, confidence badge and alternative queries.  The block MUST
+be the very last part of your response (after all markdown text).
+
+```decision
+{
+  "confidence_score": 8.5,
+  "decision_log": [
+    "Step 1: Translated question to SQL with SELECT + JOIN",
+    "Step 2: Ran execute_query — returned 42 rows",
+    "Step 3: Called explain_data — skew=0.3, kurtosis=-0.1, no outliers",
+    "Step 4: Called assess_query — confidence 8.5, no issues"
+  ],
+  "alternatives": [
+    "SELECT * FROM products WHERE category='Beverages' LIMIT 50",
+    "SELECT category, SUM(quantity) FROM products GROUP BY category"
+  ],
+  "performance": {
+    "execution_time_ms": 42,
+    "rows_per_second": 4200
+  },
+  "visualization": "bar"
+}
+```
+
+Fields:
+- confidence_score (float 0-10): from assess_query if called, else estimate
+- decision_log (list of strings): brief steps you took
+- alternatives (list of strings): alternative queries the user might try
+- performance (object, optional): execution_time_ms and rows_per_second from execute_query
+- visualization (string, optional): recommended chart type from assess_query
+"""
 
 
 # ------------------------------------------------------------------
@@ -146,9 +182,13 @@ def summarize_tool_result(name, result):
     """Create a compact summary of a tool result for the UI."""
     if name == "execute_query":
         if result.get("success"):
+            perf = ""
+            if result.get("execution_time_ms"):
+                perf = f" in {result['execution_time_ms']}ms"
             return (
                 f"{result['row_count']} row(s) returned"
                 + (" (truncated)" if result.get("truncated") else "")
+                + perf
             )
         return f"Query failed: {result.get('error', 'unknown error')}"
     if name == "generate_chart":
@@ -163,6 +203,14 @@ def summarize_tool_result(name, result):
         return "Schema retrieved"
     if name == "explain_data":
         return "Data summarized"
+    if name == "explain_plan":
+        if result.get("success"):
+            return "Execution plan retrieved"
+        return f"Explain failed: {result.get('error', 'unknown error')}"
+    if name == "assess_query":
+        if result.get("success"):
+            return f"Confidence: {result.get('confidence', '?')}/10"
+        return "Assessment failed"
     return "Tool executed"
 
 
@@ -344,6 +392,8 @@ def stream_chat(messages, database="grocery"):
                         "columns": result.get("columns", []),
                         "rows": result.get("data", []),
                         "row_count": result.get("row_count", 0),
+                        "execution_time_ms": result.get("execution_time_ms"),
+                        "rows_per_second": result.get("rows_per_second"),
                     })
 
                 yield event("tool_result", result_event)
