@@ -1,7 +1,7 @@
 """
-Streaming LLM agent backed by OpenRouter.
+Streaming LLM agent (Groq preferred, OpenRouter fallback).
 
-Uses OpenRouter's OpenAI-compatible chat completions API with the
+Uses an OpenAI-compatible chat completions API with the
 function-calling loop, and yields structured events so the
 frontend can stream tokens and render tool artefacts live:
 
@@ -23,8 +23,8 @@ from openai import APIConnectionError, APIStatusError, OpenAI
 from backend.config import (
     DATABASES,
     MAX_TOOL_TURNS,
-    OPENROUTER_API_KEY,
-    OPENROUTER_BASE_URL,
+    LLM_API_KEY,
+    LLM_BASE_URL,
     available_models,
 )
 from backend.tool_registry import build_tool_declarations, run_tool
@@ -33,14 +33,15 @@ load_dotenv()
 
 
 def get_client():
-    if not OPENROUTER_API_KEY:
+    if not LLM_API_KEY:
         raise RuntimeError(
-            "OPENROUTER_API_KEY is not configured. "
-            "Set it in the Vercel environment variables or .env."
+            "LLM API key is not configured. "
+            "Set GROQ_API_KEY (preferred) or OPENROUTER_API_KEY "
+            "in the Vercel environment variables or .env."
         )
     return OpenAI(
-        base_url=OPENROUTER_BASE_URL,
-        api_key=OPENROUTER_API_KEY,
+        base_url=LLM_BASE_URL,
+        api_key=LLM_API_KEY,
         max_retries=0,
     )
 

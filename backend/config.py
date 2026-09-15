@@ -12,29 +12,54 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # ------------------------------------------------------------------
-# LLM settings (OpenRouter - OpenAI-compatible API)
+# LLM settings (OpenAI-compatible API: Groq preferred, OpenRouter fallback)
+#
+# Groq is much faster (10-15s vs 90s) and still free.
+# Set GROQ_API_KEY in Vercel / .env. Old OPENROUTER_* vars still work.
 # ------------------------------------------------------------------
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_BASE_URL = os.getenv(
-    "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
-)
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
+_GROQ_KEY = os.getenv("GROQ_API_KEY", "")
+_OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY", "")
+
+# Prefer Groq when its key is present.
+LLM_API_KEY = _GROQ_KEY or _OPENROUTER_KEY
+
+if _GROQ_KEY:
+    _DEFAULT_BASE = "https://api.groq.com/openai/v1"
+    _DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    _DEFAULT_FALLBACKS = "llama-3.1-8b-instant"
+    LLM_BASE_URL = os.getenv("GROQ_BASE_URL", _DEFAULT_BASE)
+    LLM_MODEL = os.getenv("GROQ_MODEL", _DEFAULT_MODEL)
+    _fallback_raw = os.getenv(
+        "GROQ_FALLBACK_MODELS",
+        os.getenv("OPENROUTER_FALLBACK_MODELS", _DEFAULT_FALLBACKS),
+    )
+else:
+    _DEFAULT_BASE = "https://openrouter.ai/api/v1"
+    _DEFAULT_MODEL = "nvidia/nemotron-3.5-lightning:free"
+    _DEFAULT_FALLBACKS = (
+        "dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free"
+    )
+    LLM_BASE_URL = os.getenv("OPENROUTER_BASE_URL", _DEFAULT_BASE)
+    LLM_MODEL = os.getenv("OPENROUTER_MODEL", _DEFAULT_MODEL)
+    _fallback_raw = os.getenv("OPENROUTER_FALLBACK_MODELS", _DEFAULT_FALLBACKS)
 
 # Comma-separated fallback models tried when the primary model is
 # unavailable (429 rate limit / 503 high demand on the provider side).
-OPENROUTER_FALLBACK_MODELS = [
-    m.strip()
-    for m in os.getenv(
-        "OPENROUTER_FALLBACK_MODELS",
-        "dots-studio/dots-3-note-preview:free,google/gemma-4-31b-it:free",
-    ).split(",")
-    if m.strip()
+LLM_FALLBACK_MODELS = [
+    m.strip() for m in _fallback_raw.split(",") if m.strip()
 ]
+
+# Backwards-compat aliases (old code imports OPENROUTER_*).
+OPENROUTER_API_KEY = LLM_API_KEY
+OPENROUTER_BASE_URL = LLM_BASE_URL
+OPENROUTER_MODEL = LLM_MODEL
+OPENROUTER_FALLBACK_MODELS = LLM_FALLBACK_MODELS
+
 
 def available_models():
     """Primary model followed by fallbacks, de-duplicated."""
-    models = [OPENROUTER_MODEL] + OPENROUTER_FALLBACK_MODELS
+    models = [LLM_MODEL] + LLM_FALLBACK_MODELS
     seen = set()
     result = []
     for model in models:
