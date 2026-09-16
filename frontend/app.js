@@ -427,7 +427,8 @@ function loadSession(id) {
   els.topbarDb.textContent = state.database;
   if (state.schemaOpen) loadSchema();
   renderAll();
-  hideWelcome();
+  if (state.messages.length === 0) showWelcome();
+  else hideWelcome();
   state.stick = true;
   autoscroll();
   renderSessions();
@@ -508,6 +509,7 @@ function getMsgEl(index) {
 
 function focusWelcomeOut() {
   els.welcome.hidden = true;
+  els.messages.style.display = "block";
 }
 
 function hideWelcome() {
@@ -517,7 +519,7 @@ function hideWelcome() {
 
 function showWelcome() {
   els.welcome.hidden = false;
-  els.messages.style.display = "block";
+  els.messages.style.display = "none";
 }
 
 /* ------------------------------------------------------------------ */
@@ -1348,6 +1350,7 @@ function showView(view) {
     if (statusBar) statusBar.style.display = "flex";
     if (analyticsView) analyticsView.hidden = true;
     if (state.messages.length === 0) showWelcome();
+    else hideWelcome();
   }
 }
 
