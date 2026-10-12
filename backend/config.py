@@ -85,11 +85,11 @@ BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BACKEND_DIR)
 
 
-def _find_database_file():
-    """Locate database/grocery_store.db by walking up parent folders."""
+def _find_database_file(filename="grocery_store.db"):
+    """Locate database/<filename> by walking up parent folders."""
     cursor = BACKEND_DIR
     while True:
-        candidate = os.path.join(cursor, "database", "grocery_store.db")
+        candidate = os.path.join(cursor, "database", filename)
         if os.path.exists(candidate):
             return candidate
         parent = os.path.dirname(cursor)
@@ -99,8 +99,18 @@ def _find_database_file():
 
 
 DATABASES = {
+    "students": {
+        "path": _find_database_file("student_performance.db")
+        or os.path.join(PROJECT_ROOT, "database", "student_performance.db"),
+        "description": (
+            "Student academic performance (PDF mini-project): attendance %, "
+            "internal_marks /50, assignment_marks /20, prev_gpa 0-10, "
+            "practical_marks /50, study_pattern, final_marks /100 target. "
+            "164 synthetic demo rows (not real students)."
+        ),
+    },
     "grocery": {
-        "path": _find_database_file()
+        "path": _find_database_file("grocery_store.db")
         or os.path.join(PROJECT_ROOT, "database", "grocery_store.db"),
         "description": (
             "E-commerce grocery store with customers, suppliers, "
@@ -108,6 +118,8 @@ DATABASES = {
         ),
     },
 }
+
+DEFAULT_DATABASE = "students"
 
 
 def database_path(name):

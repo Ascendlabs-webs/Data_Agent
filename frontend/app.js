@@ -8,7 +8,7 @@ const LS_SESSIONS = "daa_sessions";
 const LS_PINNED = "daa_pinned";
 
 const state = {
-  database: "grocery",
+  database: "students",
   messages: [],
   streaming: false,
   sessionId: null,
@@ -51,7 +51,7 @@ const els = {
 
 if (window.marked) marked.setOptions({ breaks: true, gfm: true });
 
-if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: "dark" });
+if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: "default" });
 
 const TOOL_LABELS = {
   get_schema: "View schema",
@@ -555,25 +555,25 @@ function brandChartLayout(layout) {
   const base = layout && typeof layout === "object" ? layout : {};
   return Object.assign({}, base, {
     paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(16,17,28,0.85)",
+    plot_bgcolor: "rgba(15,23,42,0.04)",
     font: Object.assign({}, base.font, {
-      color: "#A7A4B8",
+      color: "#334155",
       family: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       size: 12,
     }),
-    colorway: ["#8B5CF6", "#9B6CFF", "#B59CFF", "#34D399", "#22D3EE"],
+    colorway: ["#2563eb", "#0d9488", "#7c3aed", "#059669", "#0284c7"],
     margin: Object.assign({ l: 56, r: 20, t: 30, b: 44 }, base.margin),
     xaxis: Object.assign({}, base.xaxis, {
-      gridcolor: "rgba(255,255,255,0.07)",
-      zerolinecolor: "rgba(255,255,255,0.1)",
-      linecolor: "rgba(255,255,255,0.12)",
-      tickfont: Object.assign({}, (base.xaxis && base.xaxis.tickfont) || {}, { color: "#6F6C80" }),
+      gridcolor: "rgba(15,23,42,0.08)",
+      zerolinecolor: "rgba(15,23,42,0.12)",
+      linecolor: "rgba(15,23,42,0.15)",
+      tickfont: Object.assign({}, (base.xaxis && base.xaxis.tickfont) || {}, { color: "#64748b" }),
     }),
     yaxis: Object.assign({}, base.yaxis, {
-      gridcolor: "rgba(255,255,255,0.07)",
-      zerolinecolor: "rgba(255,255,255,0.1)",
-      linecolor: "rgba(255,255,255,0.12)",
-      tickfont: Object.assign({}, (base.yaxis && base.yaxis.tickfont) || {}, { color: "#6F6C80" }),
+      gridcolor: "rgba(15,23,42,0.08)",
+      zerolinecolor: "rgba(15,23,42,0.12)",
+      linecolor: "rgba(15,23,42,0.15)",
+      tickfont: Object.assign({}, (base.yaxis && base.yaxis.tickfont) || {}, { color: "#64748b" }),
     }),
   });
 }
@@ -1128,7 +1128,7 @@ function setStatus(kind, msg) {
 
 function fillWelcomeNote() {
   if (!els.welcomeNote) return;
-  els.welcomeNote.textContent = "Try: \"Top 3 products by revenue\", \"Show a chart\", or \"Explain the data\".";
+  els.welcomeNote.textContent = "Try: \"Average final marks by study pattern\", \"Attendance vs final marks chart\", or \"At-risk students below 55\".";
   els.welcomeNote.hidden = false;
 }
 
@@ -1141,11 +1141,12 @@ function checkServer() {
           opt.value = db.name;
           els.dbSelect.append(opt);
         });
-        state.database = dbs[0].name;
+        const preferred = dbs.some((d) => d.name === "students") ? "students" : dbs[0].name;
+        state.database = preferred;
         els.dbSelect.value = state.database;
         els.topbarDb.textContent = state.database;
       }
-      setStatus("ok", "Connected · " + (dbs.length ? dbs[0].name : "no databases"));
+      setStatus("ok", "Connected · " + (state.database || (dbs.length ? dbs[0].name : "no databases")));
     })
     .catch(() => {
       setStatus("err", "Agent offline — cannot reach /api/databases");
@@ -1247,7 +1248,7 @@ function openDatabaseExplorer() {
   if (!modal || !tabsEl || !bodyEl) return;
 
   if (titleEl) {
-    titleEl.textContent = (state.database || "Grocery").toUpperCase() + " DATABASE";
+    titleEl.textContent = (state.database || "Students").toUpperCase() + " DATABASE";
   }
 
   tabsEl.innerHTML = "";
@@ -1317,7 +1318,7 @@ window.addEventListener("keydown", (e) => {
 /* analytics dashboard                                                 */
 /* ------------------------------------------------------------------ */
 
-const ANALYTICS_COLORS = ["#8B5CF6","#06b6d4","#10b981","#f59e0b","#f43f5e","#ec4899","#14b8a6","#3b82f6"];
+const ANALYTICS_COLORS = ["#2563eb","#0284c7","#0d9488","#7c3aed","#059669","#ea580c","#0891b2","#4f46e5"];
 
 let analyticsLoaded = false;
 let analyticsCharts = [];
@@ -1386,12 +1387,22 @@ function loadAnalytics() {
 
 function renderStats(stats, container) {
   container.innerHTML = "";
-  const items = [
-    { label: "Products", value: stats.total_products || 0 },
-    { label: "Orders", value: stats.total_orders || 0 },
-    { label: "Customers", value: stats.total_customers || 0 },
-    { label: "Revenue", value: "₹" + Number(stats.total_revenue || 0).toLocaleString("en-IN") },
-  ];
+  let items;
+  if (state.database === "students" || stats.total_students !== undefined) {
+    items = [
+      { label: "Students", value: stats.total_students || 0 },
+      { label: "Avg final /100", value: stats.avg_final || 0 },
+      { label: "Avg attendance %", value: stats.avg_attendance || 0 },
+      { label: "Avg prev GPA", value: stats.avg_gpa || 0 },
+    ];
+  } else {
+    items = [
+      { label: "Products", value: stats.total_products || 0 },
+      { label: "Orders", value: stats.total_orders || 0 },
+      { label: "Customers", value: stats.total_customers || 0 },
+      { label: "Revenue", value: "₹" + Number(stats.total_revenue || 0).toLocaleString("en-IN") },
+    ];
+  }
   items.forEach((item) => {
     const card = makeEl("div", "stat-card");
     card.innerHTML = '<span class="stat-value">' + item.value + '</span><span class="stat-label">' + item.label + '</span>';
@@ -1461,17 +1472,17 @@ function renderAnalyticsPlot(plotDiv, chart) {
 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-    font: { color: "#A7A4B8", family: "Inter, sans-serif", size: 12 },
+    plot_bgcolor: "rgba(15,23,42,0.04)",
+    font: { color: "#334155", family: "Inter, sans-serif", size: 12 },
     margin: { l: 56, r: 20, t: 30, b: 60 },
     xaxis: {
-      gridcolor: "rgba(255,255,255,0.05)",
-      tickfont: { color: "#6F6C80", size: 11 },
+      gridcolor: "rgba(15,23,42,0.08)",
+      tickfont: { color: "#64748b", size: 11 },
       tickangle: chart.data.length > 6 ? -45 : 0,
     },
     yaxis: {
-      gridcolor: "rgba(255,255,255,0.05)",
-      tickfont: { color: "#6F6C80" },
+      gridcolor: "rgba(15,23,42,0.08)",
+      tickfont: { color: "#64748b" },
     },
     showlegend: false,
   };
@@ -1483,10 +1494,10 @@ function renderAnalyticsPlot(plotDiv, chart) {
       y: yVals,
       type: "scatter",
       mode: "lines+markers",
-      line: { color: "#8B5CF6", width: 3, shape: "spline" },
-      marker: { color: "#8B5CF6", size: 7, line: { color: "#fff", width: 2 } },
+      line: { color: "#2563eb", width: 3, shape: "spline" },
+      marker: { color: "#2563eb", size: 7, line: { color: "#fff", width: 2 } },
       fill: "tozeroy",
-      fillcolor: "rgba(139,92,246,0.08)",
+      fillcolor: "rgba(37,99,235,0.08)",
     };
   } else if (chart.type === "pie") {
     trace = {
@@ -1495,7 +1506,7 @@ function renderAnalyticsPlot(plotDiv, chart) {
       type: "pie",
       marker: { colors: colors },
       textinfo: "label+percent",
-      textfont: { color: "#e5e7eb", size: 12 },
+      textfont: { color: "#334155", size: 12 },
       hole: 0.4,
     };
     delete layout.xaxis;
@@ -1505,7 +1516,7 @@ function renderAnalyticsPlot(plotDiv, chart) {
       x: xVals,
       y: yVals,
       type: "bar",
-      marker: { color: colors, line: { color: "rgba(255,255,255,0.1)", width: 1 } },
+      marker: { color: colors, line: { color: "rgba(15,23,42,0.12)", width: 1 } },
     };
   }
 
@@ -1572,6 +1583,9 @@ function init() {
   els.dbSelect.addEventListener("change", () => {
     state.database = els.dbSelect.value;
     els.topbarDb.textContent = state.database;
+    analyticsLoaded = false;
+    const analyticsView = document.getElementById("analytics-view");
+    if (analyticsView && !analyticsView.hidden) loadAnalytics();
     if (state.schemaOpen) loadSchema();
   });
 

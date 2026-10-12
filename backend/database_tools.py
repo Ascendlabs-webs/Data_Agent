@@ -22,11 +22,10 @@ try:
 except OSError:
     CHART_FOLDER = os.path.join(os.path.dirname(__file__), "..", "..", "tmp", "charts")
 
-# Vivid per-category palette (same hues as the frontend analytics
-# dashboard): one distinct color per bar / pie slice, MITRA-style.
+# Light-theme per-category palette (matches PDF blues + accessible accents).
 CHART_COLORS = [
-    "#8B5CF6", "#06B6D4", "#10B981", "#F59E0B",
-    "#F43F5E", "#EC4899", "#14B8A6", "#3B82F6",
+    "#2563EB", "#0284C7", "#0D9488", "#7C3AED",
+    "#059669", "#EA580C", "#0891B2", "#4F46E5",
 ]
 
 
@@ -423,10 +422,10 @@ def generate_chart(
             figure = px.scatter(rows, x=x_column, y=y_column, title=title)
 
         figure.update_layout(
-            template="plotly_dark",
+            template="plotly_white",
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#e5e7eb"},
+            plot_bgcolor="rgba(15,23,42,0.03)",
+            font={"color": "#334155"},
             margin={"l": 40, "r": 20, "t": 50, "b": 40},
         )
 
@@ -471,10 +470,10 @@ def _heatmap_chart(rows, title="Correlation"):
             text_auto=".2f", aspect="auto", title=title, color_continuous_scale="Viridis",
         )
         figure.update_layout(
-            template="plotly_dark",
+            template="plotly_white",
             paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            font={"color": "#e5e7eb"},
+            plot_bgcolor="rgba(15,23,42,0.03)",
+            font={"color": "#334155"},
             margin={"l": 60, "r": 20, "t": 50, "b": 60},
         )
         return {

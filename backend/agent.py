@@ -287,7 +287,7 @@ def _stream_turn(chat, tools):
 # Main streaming loop
 # ------------------------------------------------------------------
 
-def stream_chat(messages, database="grocery"):
+def stream_chat(messages, database="students"):
     """
     Generator yielding event dictionaries for one user message.
 

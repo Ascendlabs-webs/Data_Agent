@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from backend.agent import stream_chat
 from backend.analytics import get_analytics, get_stats
-from backend.config import DATABASES, database_names
+from backend.config import DATABASES, DEFAULT_DATABASE, database_names
 from backend.database_tools import execute_query, get_schema
 from backend.history_store import (
     add_entry,
@@ -45,12 +45,12 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     messages: list = Field(default_factory=list)
-    database: str = "grocery"
+    database: str = "students"
 
 
 class QueryRequest(BaseModel):
     sql: str = Field(max_length=8000)
-    database: str = "grocery"
+    database: str = "students"
 
 
 # ------------------------------------------------------------------
@@ -76,7 +76,7 @@ def _rate_limited(request: Request, limit: int = 40, window: int = 60) -> bool:
 
 
 def _resolve_db(name: str) -> str:
-    return name if name in database_names() else "grocery"
+    return name if name in database_names() else DEFAULT_DATABASE
 
 
 def _validate_chat(request: ChatRequest):
@@ -126,7 +126,7 @@ def chat_stream(request: ChatRequest, raw: Request = None):
 class HistoryRequest(BaseModel):
     question: str
     sql: str = ""
-    database: str = "grocery"
+    database: str = "students"
 
 
 # ------------------------------------------------------------------
@@ -143,7 +143,7 @@ def databases():
 
 
 @app.get("/api/schema")
-def schema(database: str = "grocery"):
+def schema(database: str = "students"):
     """JSON schema representation of a database."""
     return get_schema(database)
 
@@ -192,14 +192,14 @@ def remove_history(entry_id: str):
 # ------------------------------------------------------------------
 
 @app.get("/api/analytics")
-def analytics(database: str = "grocery"):
+def analytics(database: str = "students"):
     """Return pre-built chart data for the analytics dashboard."""
     db = _resolve_db(database)
     return get_analytics(db)
 
 
 @app.get("/api/analytics/stats")
-def analytics_stats(database: str = "grocery"):
+def analytics_stats(database: str = "students"):
     """Return summary stats for the analytics dashboard header."""
     db = _resolve_db(database)
     return get_stats(db)
