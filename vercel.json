@@ -3,7 +3,7 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "includeFiles": "frontend/**\ndatabase/**"
+      "includeFiles": "{frontend/**,database/**}"
     }
   },
   "rewrites": [{ "source": "/(.*)", "destination": "api/index.py" }]
